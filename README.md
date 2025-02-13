@@ -91,4 +91,4 @@ Missing Dependencies (ex: web-vitals)	Dependência não instalada	Execute npm in
 #Licença
 Este projeto está licenciado sob a MIT License.
 
-Desenvolvido por Metanoia em colaboração com Phd.Eng. Analcisio Rodino
+Desenvolvido por Metanoia com a proposta do Phd.Eng. Analcisio Rodino
