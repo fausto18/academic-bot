@@ -127,7 +127,7 @@ function App() {
         
       }}
     >
-        Desenvolvido por metanoia
+        metanoia 2025
       </footer></>
   );
 }
