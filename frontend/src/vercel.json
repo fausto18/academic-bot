@@ -1,5 +1,4 @@
-# Corrigir o conteúdo do arquivo vercel.js
-corrected_vercel_config = '''{
+{
     "rewrites": [
         {
             "source": "/(.*)",
@@ -7,11 +6,3 @@ corrected_vercel_config = '''{
         }
     ]
 }
-'''
-
-# Escrever a correção no arquivo
-with open(vercel_config_path, "w", encoding="utf-8") as file:
-    file.write(corrected_vercel_config)
-
-# Confirmar que a atualização foi feita
-corrected_vercel_config
