@@ -1,1 +1,9 @@
-https://academic-9qwdqs1n9-faustos-projects-58f0ae77.vercel.app/
+{
+    "rewrites": [
+        {
+            "source": "/(.*)",
+            "destination": "/*"
+        }
+    ]
+}
+
