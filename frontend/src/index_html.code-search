@@ -1,0 +1,9 @@
+# Query: index.html
+# ContextLines: 1
+
+1 result - 1 file
+
+frontend/src/vercel.json:
+  4              "source": "/(.*)",
+  5:             "destination": "/build/index.html"
+  6          }
