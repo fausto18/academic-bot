@@ -71,7 +71,7 @@ function App() {
     formData.append("file", file);
 
     try {
-      const response = await axios.post("https://academic-bot-production.up.railway.app/", formData, {
+      const response = await axios.post("https://academic-bot-production.up.railway.app/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       const data = response.data;
