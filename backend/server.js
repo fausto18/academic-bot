@@ -31,6 +31,21 @@ const usuarios = [
 
 const pendentes = [];
 
+function autenticarToken(req, res, next) {
+  const token = req.cookies.token;
+  if (!token) {
+    return res.status(401).json({ mensagem: "Token não fornecido." });
+  }
+
+  try {
+    const decoded = jwt.verify(token, JWT_SECRET);
+    req.usuario = decoded;
+    next();
+  } catch (err) {
+    return res.status(401).json({ mensagem: "Token inválido." });
+  }
+}
+
 app.post("/register", (req, res) => {
   const { email, senha } = req.body;
   if (usuarios.some(u => u.email === email) || pendentes.some(u => u.email === email)) {
@@ -77,7 +92,6 @@ app.post("/login", (req, res) => {
   });
   res.json({ mensagem: "Login bem-sucedido" });
 });
-
 
 const secoesMapeadas = {
   introducao: ["Introdução", "Introducao"],
@@ -239,11 +253,11 @@ app.post("/upload", autenticarToken, upload.single("file"), async (req, res) => 
     res.status(500).send("Erro ao processar o PDF.");
   }
 });
+
 app.get("/pendentes", (req, res) => {
   const listaEmails = pendentes.map((u) => ({ email: u.email }));
   res.json(listaEmails);
 });
-
 
 app.listen(port, () => {
   console.log(`Servidor rodando na porta ${port}`);
