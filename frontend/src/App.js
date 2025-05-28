@@ -2,10 +2,11 @@ import React, { useState } from "react";
 import axios from "axios";
 import SectionDisplay from "./components/SectionDisplay";
 import VisualizadorPDF from "./components/VisualizadorPDF";
-import "./App.css"; // Importando o CSS para estilização
+import "./App.css";
 
 function App() {
   const [file, setFile] = useState(null);
+  const [showPDF, setShowPDF] = useState(false);
   const [textoExtraido, setTextoExtraido] = useState("");
   const [errosOrtograficos, setErrosOrtograficos] = useState("");
   const [paragrafosMalElaborados, setParagrafosMalElaborados] = useState("");
@@ -59,6 +60,7 @@ function App() {
 
   const handleFileChange = (event) => {
     setFile(event.target.files[0]);
+    setShowPDF(true); // mostrar o PDF novamente
   };
 
   const handleUpload = async () => {
@@ -66,7 +68,10 @@ function App() {
       alert("Selecione um arquivo PDF");
       return;
     }
+
     setLoading(true);
+    setShowPDF(false); // esconde o PDF após envio
+
     const formData = new FormData();
     formData.append("file", file);
 
@@ -89,6 +94,7 @@ function App() {
       console.error(error);
       alert("Erro ao processar o PDF");
     }
+
     setLoading(false);
   };
 
@@ -100,38 +106,24 @@ function App() {
         </div>
       )}
 
-      <div
-        style={{
-          ...themeStyles,
-          padding: "20px",
-          fontFamily: "Arial, sans-serif",
-          minHeight: "100vh",
-        }}
-      >
+      <div style={{ ...themeStyles, padding: "20px", fontFamily: "Arial, sans-serif", minHeight: "100vh" }}>
         <h1>Revisão de Trabalhos Acadêmicos</h1>
+
         <div style={{ marginBottom: "25px" }}>
-          <button onClick={() => setTheme("light")} style={buttonStyle}>
-            Tema Claro
-          </button>
-          <button onClick={() => setTheme("dark")} style={buttonStyle}>
-            Tema Escuro
-          </button>
+          <button onClick={() => setTheme("light")} style={buttonStyle}>Tema Claro</button>
+          <button onClick={() => setTheme("dark")} style={buttonStyle}>Tema Escuro</button>
         </div>
+
         <div>
           <input type="file" accept="application/pdf" onChange={handleFileChange} />
-          <button
-  onClick={handleUpload}
-  style={buttonStyle}
-  disabled={loading}
->
-  Enviar
-</button>
-
+          <button onClick={handleUpload} style={buttonStyle} disabled={loading}>
+            Enviar
+          </button>
         </div>
 
-        {file && <VisualizadorPDF file={file} />}
+        {showPDF && file && <VisualizadorPDF file={file} />}
 
-        {!loading && (
+        {!loading && textoExtraido && (
           <>
             <hr />
             <h2>Texto Extraído</h2>
@@ -146,58 +138,47 @@ function App() {
             <pre style={preStyle}>{paragrafosMalElaborados}</pre>
 
             <hr />
-            <SectionDisplay
-              title="Introdução"
-              content={introducao}
-              suggestion={sugestoesIntroducao}
-              themeStyles={themeStyles}
-            />
+            <SectionDisplay title="Introdução" content={introducao} suggestion={sugestoesIntroducao} themeStyles={themeStyles} />
             <SectionDisplay title="Objetivos" content={objetivos} themeStyles={themeStyles} />
             <SectionDisplay title="Resultados" content={resultados} themeStyles={themeStyles} />
             <SectionDisplay title="Conclusão" content={conclusao} themeStyles={themeStyles} />
 
             <hr />
             <h2>Avaliação da Convergência entre Objetivos e Resultados</h2>
-            <blockquote
-              style={{
-                background: themeStyles.backgroundBlockquote,
-                color: themeStyles.color,
-                padding: "10px",
-                borderRadius: "6px",
-                textAlign: "left",
-              }}
-            >
+            <blockquote style={{
+              background: themeStyles.backgroundBlockquote,
+              color: themeStyles.color,
+              padding: "10px",
+              borderRadius: "6px",
+              textAlign: "left",
+            }}>
               {avaliacaoConvergencia || "Não foi possível avaliar a convergência."}
             </blockquote>
 
             <hr />
             <h2>Avaliação da Conclusão</h2>
-            <blockquote
-              style={{
-                background: themeStyles.backgroundBlockquote,
-                color: themeStyles.color,
-                padding: "10px",
-                borderRadius: "6px",
-                textAlign: "left",
-              }}
-            >
+            <blockquote style={{
+              background: themeStyles.backgroundBlockquote,
+              color: themeStyles.color,
+              padding: "10px",
+              borderRadius: "6px",
+              textAlign: "left",
+            }}>
               {avaliacaoConclusao || "Não foi possível avaliar a conclusão."}
             </blockquote>
           </>
         )}
       </div>
 
-      <footer
-        style={{
-          color: "#000000",
-          backgroundColor: "#22D4FD",
-          padding: "16px",
-          textAlign: "center",
-          fontFamily: "'Montserrat', sans-serif",
-          fontSize: "16px",
-          fontWeight: 400,
-        }}
-      >
+      <footer style={{
+        color: "#000000",
+        backgroundColor: "#22D4FD",
+        padding: "16px",
+        textAlign: "center",
+        fontFamily: "'Montserrat', sans-serif",
+        fontSize: "16px",
+        fontWeight: 400,
+      }}>
         © 2025 METANOIA TECHNOLOGY. Todos os direitos reservados.
       </footer>
     </>
