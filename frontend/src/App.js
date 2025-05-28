@@ -1,6 +1,5 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import axios from "axios";
-import Cookies from "js-cookie";
 import SectionDisplay from "./components/SectionDisplay";
 import VisualizadorPDF from "./components/VisualizadorPDF";
 import "./App.css"; // Importando o CSS para estilização
@@ -19,7 +18,6 @@ function App() {
   const [avaliacaoConclusao, setAvaliacaoConclusao] = useState("");
   const [loading, setLoading] = useState(false);
   const [theme, setTheme] = useState("light");
-  const [showPdf, setShowPdf] = useState(true);
 
   const lightTheme = {
     backgroundColor: "#ffffff",
@@ -59,18 +57,8 @@ function App() {
     overflowX: "auto",
   };
 
-  useEffect(() => {
-    const savedTheme = Cookies.get("temaPreferido");
-    if (savedTheme) setTheme(savedTheme);
-  }, []);
-
   const handleFileChange = (event) => {
     setFile(event.target.files[0]);
-  };
-
-  const handleThemeChange = (newTheme) => {
-    setTheme(newTheme);
-    Cookies.set("temaPreferido", newTheme);
   };
 
   const handleUpload = async () => {
@@ -81,7 +69,6 @@ function App() {
     setLoading(true);
     const formData = new FormData();
     formData.append("file", file);
-    Cookies.set("ultimoArquivo", file.name);
 
     try {
       const response = await axios.post("https://academic-bot-production.up.railway.app/upload", formData, {
@@ -98,7 +85,6 @@ function App() {
       setAvaliacaoConvergencia(data.avaliacaoConvergencia);
       setConclusao(data.conclusao);
       setAvaliacaoConclusao(data.avaliacaoConclusao);
-      setShowPdf(false);
     } catch (error) {
       console.error(error);
       alert("Erro ao processar o PDF");
@@ -124,27 +110,28 @@ function App() {
       >
         <h1>Revisão de Trabalhos Acadêmicos</h1>
         <div style={{ marginBottom: "25px" }}>
-          <button onClick={() => handleThemeChange("light")} style={buttonStyle}>
+          <button onClick={() => setTheme("light")} style={buttonStyle}>
             Tema Claro
           </button>
-          <button onClick={() => handleThemeChange("dark")} style={buttonStyle}>
+          <button onClick={() => setTheme("dark")} style={buttonStyle}>
             Tema Escuro
           </button>
         </div>
         <div>
           <input type="file" accept="application/pdf" onChange={handleFileChange} />
           <button
-            onClick={handleUpload}
-            style={buttonStyle}
-            disabled={loading}
-          >
-            Enviar
-          </button>
+  onClick={handleUpload}
+  style={buttonStyle}
+  disabled={loading}
+>
+  Enviar
+</button>
+
         </div>
 
-        {file && showPdf && <VisualizadorPDF file={file} />}
+        {file && <VisualizadorPDF file={file} />}
 
-        {!loading && textoExtraido && (
+        {!loading && (
           <>
             <hr />
             <h2>Texto Extraído</h2>
