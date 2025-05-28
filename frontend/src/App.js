@@ -5,7 +5,6 @@ import VisualizadorPDF from "./components/VisualizadorPDF";
 import Login from "./components/Login";
 import Register from "./components/Register";
 import AdminPanel from "./components/AdminPanel";
-import "./App.css";
 
 function App() {
   const [autenticado, setAutenticado] = useState(false);
