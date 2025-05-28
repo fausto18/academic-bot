@@ -13,11 +13,17 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const upload = multer({ storage: multer.memoryStorage() });
-app.use(cors());
-app.use(express.json());
+// ✅ Configura CORS para permitir apenas o frontend hospedado na Vercel
+app.use(cors({
+  origin: 'https://academic-bot-five.vercel.app',
+  methods: ["GET", "POST"],
+  credentials: true
 
-// Mapeamento de nomes de seções
+}));
+
+app.use(express.json());
+const upload = multer({ storage: multer.memoryStorage() });
+
 const secoesMapeadas = {
   introducao: ["Introdução", "Introducao"],
   objetivos: ["Objetivos", "Objetivo", "Objectivos", "Objectivo"],
@@ -25,7 +31,6 @@ const secoesMapeadas = {
   conclusao: ["Conclusão", "Conclusao", "Considerações finais"],
 };
 
-// Função utilitária para identificar erro de cota excedida
 function isQuotaExceeded(error) {
   return (
     error?.status === 429 &&
@@ -34,7 +39,6 @@ function isQuotaExceeded(error) {
   );
 }
 
-// Função para extrair seções do texto
 function extrairSecao(tipo, texto) {
   const nomesPossiveis = secoesMapeadas[tipo];
   if (!nomesPossiveis) return "";
@@ -51,7 +55,6 @@ function extrairSecao(tipo, texto) {
   return "";
 }
 
-// API de correção ortográfica
 async function corrigirTexto(texto) {
   try {
     const prompt = `Corrija os erros ortográficos no seguinte texto e apresente as sugestões de correção:\n\n${texto}`;
@@ -71,7 +74,6 @@ async function corrigirTexto(texto) {
   }
 }
 
-// API de avaliação de parágrafos
 async function avaliarParagrafos(texto) {
   try {
     const prompt = `Identifique parágrafos mal elaborados no seguinte texto e sugira melhorias:\n\n${texto}`;
@@ -91,7 +93,6 @@ async function avaliarParagrafos(texto) {
   }
 }
 
-// API de sugestão para introdução
 async function sugestaoMelhoriasIntroducao(introducao) {
   if (!introducao) return "Introdução não encontrada.";
   try {
@@ -112,7 +113,6 @@ async function sugestaoMelhoriasIntroducao(introducao) {
   }
 }
 
-// API de verificação de convergência entre objetivos e resultados
 async function avaliarConvergencia(objetivos, resultados) {
   if (!objetivos || !resultados)
     return "Seção de Objetivos ou Resultados não encontrada.";
@@ -134,7 +134,6 @@ async function avaliarConvergencia(objetivos, resultados) {
   }
 }
 
-// API para avaliar metas e conclusões
 async function avaliarMetasEConclusoes(metas, conclusoes) {
   if (!metas || !conclusoes) return "Metas ou Conclusões não encontradas.";
 
@@ -166,7 +165,6 @@ async function avaliarMetasEConclusoes(metas, conclusoes) {
   }
 }
 
-// Rota principal
 app.post("/upload", upload.single("file"), async (req, res) => {
   if (!req.file) {
     return res.status(400).send("Nenhum arquivo enviado.");
@@ -198,7 +196,7 @@ app.post("/upload", upload.single("file"), async (req, res) => {
       resultados,
       conclusao,
       avaliacaoConvergencia,
-      avaliacaoMetasConclusoes,
+      avaliacaoConclusao: avaliacaoMetasConclusoes,
     });
   } catch (error) {
     console.error("Erro no processamento:", error);
