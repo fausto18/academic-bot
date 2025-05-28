@@ -2,9 +2,11 @@ import React, { useState } from "react";
 import axios from "axios";
 import SectionDisplay from "./components/SectionDisplay";
 import VisualizadorPDF from "./components/VisualizadorPDF";
+import Login from "./components/Login";
 import "./App.css";
 
 function App() {
+  const [autenticado, setAutenticado] = useState(false);
   const [file, setFile] = useState(null);
   const [showPDF, setShowPDF] = useState(false);
   const [textoExtraido, setTextoExtraido] = useState("");
@@ -60,7 +62,7 @@ function App() {
 
   const handleFileChange = (event) => {
     setFile(event.target.files[0]);
-    setShowPDF(true); // mostrar o PDF novamente
+    setShowPDF(true);
   };
 
   const handleUpload = async () => {
@@ -70,7 +72,7 @@ function App() {
     }
 
     setLoading(true);
-    setShowPDF(false); // esconde o PDF após envio
+    setShowPDF(false);
 
     const formData = new FormData();
     formData.append("file", file);
@@ -78,6 +80,7 @@ function App() {
     try {
       const response = await axios.post("https://academic-bot-production.up.railway.app/upload", formData, {
         headers: { "Content-Type": "multipart/form-data" },
+        withCredentials: true,
       });
       const data = response.data;
       setTextoExtraido(data.textoExtraido);
@@ -98,6 +101,29 @@ function App() {
     setLoading(false);
   };
 
+  const handleLogout = async () => {
+    try {
+      await axios.post("https://academic-bot-production.up.railway.app/logout", {}, { withCredentials: true });
+      setAutenticado(false);
+      setFile(null);
+      setShowPDF(false);
+      setTextoExtraido("");
+      setErrosOrtograficos("");
+      setParagrafosMalElaborados("");
+      setIntroducao("");
+      setSugestoesIntroducao("");
+      setObjetivos("");
+      setResultados("");
+      setAvaliacaoConvergencia("");
+      setConclusao("");
+      setAvaliacaoConclusao("");
+    } catch (error) {
+      console.error("Erro ao fazer logout:", error);
+    }
+  };
+
+  if (!autenticado) return <Login onLogin={setAutenticado} />;
+
   return (
     <>
       {loading && (
@@ -107,7 +133,12 @@ function App() {
       )}
 
       <div style={{ ...themeStyles, padding: "20px", fontFamily: "Arial, sans-serif", minHeight: "100vh" }}>
-        <h1>Revisão de Trabalhos Acadêmicos</h1>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h1>Revisão de Trabalhos Acadêmicos</h1>
+          <button onClick={handleLogout} style={{ ...buttonStyle, backgroundColor: "#ff7070", color: "#fff" }}>
+            Sair
+          </button>
+        </div>
 
         <div style={{ marginBottom: "25px" }}>
           <button onClick={() => setTheme("light")} style={buttonStyle}>Tema Claro</button>

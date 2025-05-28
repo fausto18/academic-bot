@@ -4,25 +4,62 @@ import cors from "cors";
 import pdfParse from "pdf-parse";
 import OpenAI from "openai";
 import dotenv from "dotenv";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
+import cookieParser from "cookie-parser";
 dotenv.config();
 
 const app = express();
 const port = 5000;
 
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
-
-// ✅ Configura CORS para permitir apenas o frontend hospedado na Vercel
-app.use(cors({
-  origin: 'https://academic-bot-five.vercel.app',
-  methods: ["GET", "POST"],
-  credentials: true
-
-}));
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const JWT_SECRET = process.env.JWT_SECRET || "segredo_forte";
 
 app.use(express.json());
+app.use(cookieParser());
+
+app.use(cors({
+  origin: "https://academic-bot-five.vercel.app",
+  methods: ["GET", "POST"],
+  credentials: true,
+}));
+
 const upload = multer({ storage: multer.memoryStorage() });
+
+const usuarios = [
+  { id: 1, email: "faustosacufundala97@gmail.com", senha: bcrypt.hashSync("@Fausto18", 10) },
+];
+
+function autenticarToken(req, res, next) {
+  const token = req.cookies.token;
+  if (!token) return res.sendStatus(401);
+  jwt.verify(token, JWT_SECRET, (err, user) => {
+    if (err) return res.sendStatus(403);
+    req.usuario = user;
+    next();
+  });
+}
+
+app.post("/login", (req, res) => {
+  const { email, senha } = req.body;
+  const usuario = usuarios.find((u) => u.email === email);
+  if (!usuario || !bcrypt.compareSync(senha, usuario.senha)) {
+    return res.status(401).json({ mensagem: "Credenciais inválidas" });
+  }
+  const token = jwt.sign({ id: usuario.id, email: usuario.email }, JWT_SECRET, { expiresIn: "2h" });
+  res.cookie("token", token, {
+    httpOnly: true,
+    secure: true,
+    sameSite: "None",
+    maxAge: 2 * 60 * 60 * 1000,
+  });
+  res.json({ mensagem: "Login bem-sucedido" });
+});
+
+app.post("/logout", (req, res) => {
+  res.clearCookie("token");
+  res.json({ mensagem: "Logout realizado com sucesso" });
+});
 
 const secoesMapeadas = {
   introducao: ["Introdução", "Introducao"],
@@ -67,9 +104,7 @@ async function corrigirTexto(texto) {
     return completion.choices[0].text.trim();
   } catch (error) {
     console.error("Erro na correção ortográfica:", error);
-    if (isQuotaExceeded(error)) {
-      return "Limite de uso da API da OpenAI excedido.";
-    }
+    if (isQuotaExceeded(error)) return "Limite de uso da API da OpenAI excedido.";
     return "Erro na correção ortográfica.";
   }
 }
@@ -86,9 +121,7 @@ async function avaliarParagrafos(texto) {
     return completion.choices[0].text.trim();
   } catch (error) {
     console.error("Erro na análise de parágrafos:", error);
-    if (isQuotaExceeded(error)) {
-      return "Limite de uso da API da OpenAI excedido.";
-    }
+    if (isQuotaExceeded(error)) return "Limite de uso da API da OpenAI excedido.";
     return "Erro na avaliação de parágrafos.";
   }
 }
@@ -106,16 +139,13 @@ async function sugestaoMelhoriasIntroducao(introducao) {
     return completion.choices[0].text.trim();
   } catch (error) {
     console.error("Erro na introdução:", error);
-    if (isQuotaExceeded(error)) {
-      return "Limite de uso da API da OpenAI excedido.";
-    }
+    if (isQuotaExceeded(error)) return "Limite de uso da API da OpenAI excedido.";
     return "Erro na sugestão de melhorias para a introdução.";
   }
 }
 
 async function avaliarConvergencia(objetivos, resultados) {
-  if (!objetivos || !resultados)
-    return "Seção de Objetivos ou Resultados não encontrada.";
+  if (!objetivos || !resultados) return "Seção de Objetivos ou Resultados não encontrada.";
   try {
     const prompt = `Analise se os resultados apresentados estão alinhados com os objetivos estabelecidos:\n\nObjetivos:\n${objetivos}\n\nResultados:\n${resultados}\n\nAnálise:`;
     const completion = await openai.completions.create({
@@ -127,22 +157,15 @@ async function avaliarConvergencia(objetivos, resultados) {
     return completion.choices[0].text.trim();
   } catch (error) {
     console.error("Erro na convergência:", error);
-    if (isQuotaExceeded(error)) {
-      return "Limite de uso da API da OpenAI excedido.";
-    }
+    if (isQuotaExceeded(error)) return "Limite de uso da API da OpenAI excedido.";
     return "Erro na análise de convergência.";
   }
 }
 
 async function avaliarMetasEConclusoes(metas, conclusoes) {
   if (!metas || !conclusoes) return "Metas ou Conclusões não encontradas.";
-
   const messages = [
-    {
-      role: "system",
-      content:
-        "Você é um avaliador de trabalhos acadêmicos. Sua função é analisar se as conclusões estão alinhadas com as metas (objetivos) e sugerir melhorias quando necessário.",
-    },
+    { role: "system", content: "Você é um avaliador de trabalhos acadêmicos." },
     {
       role: "user",
       content: `Metas (Objetivos):\n${metas}\n\nConclusões:\n${conclusoes}\n\nPor favor, forneça uma análise completa e sugestões de melhoria.`,
@@ -158,27 +181,22 @@ async function avaliarMetasEConclusoes(metas, conclusoes) {
     return completion.choices[0].message.content;
   } catch (error) {
     console.error("Erro na análise metas/conclusões:", error);
-    if (isQuotaExceeded(error)) {
-      return "Limite de uso da API da OpenAI excedido.";
-    }
+    if (isQuotaExceeded(error)) return "Limite de uso da API da OpenAI excedido.";
     return "Erro na avaliação de metas e conclusões.";
   }
 }
 
-app.post("/upload", upload.single("file"), async (req, res) => {
-  if (!req.file) {
-    return res.status(400).send("Nenhum arquivo enviado.");
-  }
+app.post("/upload", autenticarToken, upload.single("file"), async (req, res) => {
+  if (!req.file) return res.status(400).send("Nenhum arquivo enviado.");
+
   try {
     const data = await pdfParse(req.file.buffer);
     const textoExtraido = data.text;
-
     const errosOrtograficos = await corrigirTexto(textoExtraido);
     const paragrafosMalElaborados = await avaliarParagrafos(textoExtraido);
 
     const introducao = extrairSecao("introducao", textoExtraido);
     const sugestoesIntroducao = await sugestaoMelhoriasIntroducao(introducao);
-
     const objetivos = extrairSecao("objetivos", textoExtraido);
     const resultados = extrairSecao("resultados", textoExtraido);
     const conclusao = extrairSecao("conclusao", textoExtraido);
