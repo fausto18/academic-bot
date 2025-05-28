@@ -1,41 +1,77 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
-
-# dependencies
-/node_modules
-/.pnp
-.pnp.*
-.yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/versions
-
-# testing
-/coverage
-
-# next.js
-/.next/
-/out/
-
-# production
-/build
-
-# misc
-.DS_Store
-*.pem
-
-# debug
+# Logs
+logs
+*.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-.pnpm-debug.log*
 
-# env files (can opt-in for committing if needed)
-.env*
+# Dependency directories
+node_modules/
+.pnp/
+.pnp.js
 
-# vercel
-.vercel
+# Build outputs
+dist/
+build/
+frontend/build/
+frontend/.next/
+frontend/out/
+backend/dist/
 
-# typescript
+# React development cache
+frontend/.cache/
+
+# Environment variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Editor settings
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Coverage reports
+coverage/
+
+# Optional npm cache directory
+.npm/
+
+# Linting
+.eslintcache
+
+# TypeScript build artifacts
 *.tsbuildinfo
-next-env.d.ts
+
+# Parcel cache
+.cache/
+
+# Next.js
+.next/
+
+# Svelte
+.svelte-kit/
+
+# Firebase
+.firebase/
+
+# Misc
+*.tgz
+*.log
+
+# Ignore local uploads
+uploads/
+uploads/*
+
+# Ignore compiled PDF viewers (if generated)
+frontend/public/viewer.js
+frontend/public/viewer.css
