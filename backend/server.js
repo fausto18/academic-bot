@@ -2,150 +2,171 @@ import express from "express";
 import multer from "multer";
 import cors from "cors";
 import pdfParse from "pdf-parse";
-import OpenAI from "openai"; // Importação correta
+import OpenAI from "openai";
 import dotenv from "dotenv";
 dotenv.config();
 
 const app = express();
 const port = 5000;
 
-// Configuração do OpenAI utilizando a nova sintaxe do SDK
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-// Configuração do multer para upload de arquivos em memória
 const upload = multer({ storage: multer.memoryStorage() });
-
 app.use(cors());
 app.use(express.json());
 
-/**
- * Função para extrair uma seção específica do texto.
- */
-function extrairSecao(nomeSecao, texto) {
-  const regex = new RegExp(nomeSecao + "\\s*([\\s\\S]*?)(?=\\n[A-Z])", "i");
-  const match = texto.match(regex);
-  return match ? match[1].trim() : "";
+// Mapeamento de nomes de seções
+const secoesMapeadas = {
+  introducao: ["Introdução", "Introducao"],
+  objetivos: ["Objetivos", "Objetivo", "Objectivos", "Objectivo"],
+  resultados: ["Resultados", "Resultados obtidos"],
+  conclusao: ["Conclusão", "Conclusao", "Considerações finais"],
+};
+
+// Função utilitária para identificar erro de cota excedida
+function isQuotaExceeded(error) {
+  return (
+    error?.status === 429 &&
+    (error?.code === "insufficient_quota" ||
+      error?.error?.code === "insufficient_quota")
+  );
 }
 
-/**
- * Função para sugerir correções ortográficas usando a API da OpenAI.
- */
+// Função para extrair seções do texto
+function extrairSecao(tipo, texto) {
+  const nomesPossiveis = secoesMapeadas[tipo];
+  if (!nomesPossiveis) return "";
+
+  for (const nome of nomesPossiveis) {
+    const regex = new RegExp(
+      `-?\\s*${nome}( geral| específicos)?\\s*:?\\s*\\n?([\\s\\S]*?)(?=\\n\\s*[-–]?\\s*[A-Z])`,
+      "i"
+    );
+    const match = texto.match(regex);
+    if (match) return match[2].trim();
+  }
+
+  return "";
+}
+
+// API de correção ortográfica
 async function corrigirTexto(texto) {
   try {
     const prompt = `Corrija os erros ortográficos no seguinte texto e apresente as sugestões de correção:\n\n${texto}`;
     const completion = await openai.completions.create({
       model: "gpt-4o",
-      prompt: prompt,
+      prompt,
       max_tokens: 500,
-      temperature: 0.3, // Mantém correções precisas
+      temperature: 0.3,
     });
     return completion.choices[0].text.trim();
   } catch (error) {
     console.error("Erro na correção ortográfica:", error);
-    return "Não foi possível corrigir o texto.";
+    if (isQuotaExceeded(error)) {
+      return "Limite de uso da API da OpenAI excedido.";
+    }
+    return "Erro na correção ortográfica.";
   }
 }
 
-/**
- * Função para avaliar parágrafos mal elaborados.
- */
+// API de avaliação de parágrafos
 async function avaliarParagrafos(texto) {
   try {
     const prompt = `Identifique parágrafos mal elaborados no seguinte texto e sugira melhorias:\n\n${texto}`;
     const completion = await openai.completions.create({
       model: "gpt-4o",
-      prompt: prompt,
+      prompt,
       max_tokens: 500,
       temperature: 0.4,
     });
     return completion.choices[0].text.trim();
   } catch (error) {
     console.error("Erro na análise de parágrafos:", error);
-    return "Não foi possível avaliar os parágrafos.";
+    if (isQuotaExceeded(error)) {
+      return "Limite de uso da API da OpenAI excedido.";
+    }
+    return "Erro na avaliação de parágrafos.";
   }
 }
 
-/**
- * Função para sugerir melhorias na Introdução.
- */
+// API de sugestão para introdução
 async function sugestaoMelhoriasIntroducao(introducao) {
   if (!introducao) return "Introdução não encontrada.";
   try {
     const prompt = `Analise a introdução abaixo e sugira melhorias:\n\n${introducao}`;
     const completion = await openai.completions.create({
       model: "gpt-4o",
-      prompt: prompt,
+      prompt,
       max_tokens: 400,
-      temperature: 0.7, // Permite mais criatividade
+      temperature: 0.7,
     });
     return completion.choices[0].text.trim();
   } catch (error) {
-    console.error("Erro na análise da introdução:", error);
-    return "Não foi possível sugerir melhorias para a introdução.";
+    console.error("Erro na introdução:", error);
+    if (isQuotaExceeded(error)) {
+      return "Limite de uso da API da OpenAI excedido.";
+    }
+    return "Erro na sugestão de melhorias para a introdução.";
   }
 }
 
-/**
- * Função para avaliar a convergência entre Objetivos e Resultados.
- */
+// API de verificação de convergência entre objetivos e resultados
 async function avaliarConvergencia(objetivos, resultados) {
-  if (!objetivos || !resultados) return "Seção de Objetivos ou Resultados não encontrada.";
+  if (!objetivos || !resultados)
+    return "Seção de Objetivos ou Resultados não encontrada.";
   try {
-    const prompt = `Analise se os resultados apresentados no trabalho estão alinhados com os objetivos estabelecidos. Identifique inconsistências e descreva possíveis falhas.\n\nObjetivos:\n${objetivos}\n\nResultados:\n${resultados}\n\nAnálise:`;
+    const prompt = `Analise se os resultados apresentados estão alinhados com os objetivos estabelecidos:\n\nObjetivos:\n${objetivos}\n\nResultados:\n${resultados}\n\nAnálise:`;
     const completion = await openai.completions.create({
       model: "gpt-4o",
-      prompt: prompt,
+      prompt,
       max_tokens: 300,
       temperature: 0.2,
     });
     return completion.choices[0].text.trim();
   } catch (error) {
-    console.error("Erro na avaliação de convergência:", error);
-    return "Não foi possível avaliar a convergência entre objetivos e resultados.";
+    console.error("Erro na convergência:", error);
+    if (isQuotaExceeded(error)) {
+      return "Limite de uso da API da OpenAI excedido.";
+    }
+    return "Erro na análise de convergência.";
   }
 }
 
-/**
- * Função para avaliar Metas (Objetivos) e Conclusões utilizando Chat Completions.
- */
+// API para avaliar metas e conclusões
 async function avaliarMetasEConclusoes(metas, conclusoes) {
   if (!metas || !conclusoes) return "Metas ou Conclusões não encontradas.";
 
   const messages = [
     {
       role: "system",
-      content: "Você é um avaliador de trabalhos acadêmicos. Sua função é analisar se as conclusões estão alinhadas com as metas (objetivos) e sugerir melhorias quando necessário.",
+      content:
+        "Você é um avaliador de trabalhos acadêmicos. Sua função é analisar se as conclusões estão alinhadas com as metas (objetivos) e sugerir melhorias quando necessário.",
     },
     {
       role: "user",
-      content: `Metas (Objetivos):
-${metas}
-
-Conclusões:
-${conclusoes}
-
-Por favor, forneça uma análise completa e sugira como melhorar a coerência entre as metas e as conclusões.`,
+      content: `Metas (Objetivos):\n${metas}\n\nConclusões:\n${conclusoes}\n\nPor favor, forneça uma análise completa e sugestões de melhoria.`,
     },
   ];
 
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
-      messages: messages,
+      messages,
       max_tokens: 500,
     });
     return completion.choices[0].message.content;
   } catch (error) {
-    console.error("Erro na avaliação de metas e conclusões:", error);
-    return "Não foi possível avaliar as metas e conclusões.";
+    console.error("Erro na análise metas/conclusões:", error);
+    if (isQuotaExceeded(error)) {
+      return "Limite de uso da API da OpenAI excedido.";
+    }
+    return "Erro na avaliação de metas e conclusões.";
   }
 }
 
-/**
- * Rota para upload de PDF e análise do documento.
- */
+// Rota principal
 app.post("/upload", upload.single("file"), async (req, res) => {
   if (!req.file) {
     return res.status(400).send("Nenhum arquivo enviado.");
@@ -154,19 +175,17 @@ app.post("/upload", upload.single("file"), async (req, res) => {
     const data = await pdfParse(req.file.buffer);
     const textoExtraido = data.text;
 
-    // Realizar análises com base no texto extraído
     const errosOrtograficos = await corrigirTexto(textoExtraido);
     const paragrafosMalElaborados = await avaliarParagrafos(textoExtraido);
-    const introducao = extrairSecao("Introdução", textoExtraido);
+
+    const introducao = extrairSecao("introducao", textoExtraido);
     const sugestoesIntroducao = await sugestaoMelhoriasIntroducao(introducao);
-    const objetivos = extrairSecao("Objetivos", textoExtraido);
-    const resultados = extrairSecao("Resultados", textoExtraido);
-    const conclusao = extrairSecao("Conclusão", textoExtraido);
 
-    // Avaliação via modelo de completions tradicional
+    const objetivos = extrairSecao("objetivos", textoExtraido);
+    const resultados = extrairSecao("resultados", textoExtraido);
+    const conclusao = extrairSecao("conclusao", textoExtraido);
+
     const avaliacaoConvergencia = await avaliarConvergencia(objetivos, resultados);
-
-    // Avaliação via chat completions: metas e conclusões
     const avaliacaoMetasConclusoes = await avaliarMetasEConclusoes(objetivos, conclusao);
 
     res.json({
@@ -177,19 +196,16 @@ app.post("/upload", upload.single("file"), async (req, res) => {
       sugestoesIntroducao,
       objetivos,
       resultados,
-      avaliacaoConvergencia,
       conclusao,
+      avaliacaoConvergencia,
       avaliacaoMetasConclusoes,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Erro no processamento:", error);
     res.status(500).send("Erro ao processar o PDF.");
   }
 });
 
-/**
- * Inicia o servidor na porta definida.
- */
 app.listen(port, () => {
   console.log(`Servidor rodando na porta ${port}`);
 });
