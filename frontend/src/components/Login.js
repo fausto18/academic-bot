@@ -1,90 +1,46 @@
+// Login.js
 import React, { useState } from "react";
 import axios from "axios";
 
-function Login({ onLoginSuccess }) {
+function Login({ onLogin, onRegistrar }) {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
-  const [erro, setErro] = useState("");
+  const [mensagem, setMensagem] = useState("");
+  const [mostrarSenha, setMostrarSenha] = useState(false);
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
+  const handleLogin = async () => {
     try {
-      const response = await axios.post(
-        "https://academic-bot-production.up.railway.app/login",
-        { email, senha },
-        { withCredentials: true }
-      );
-      if (response.status === 200) {
-        onLoginSuccess();
-      }
-    } catch (err) {
-      console.error(err);
-      setErro("Email ou senha inválidos");
+      const response = await axios.post("https://academic-bot-production.up.railway.app/login", { email, senha }, { withCredentials: true });
+      setMensagem(response.data.mensagem);
+      onLogin();
+    } catch (error) {
+      setMensagem("Email ou senha inválido.");
     }
   };
 
   return (
-    <div style={styles.container}>
+    <div style={{ maxWidth: "400px", margin: "50px auto", padding: "30px", backgroundColor: "#f2f2f2", borderRadius: "10px", fontFamily: "Arial" }}>
       <h2>Login</h2>
-      <form onSubmit={handleLogin} style={styles.form}>
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={styles.input}
-          required
-        />
-        <input
-          type="password"
-          placeholder="Senha"
-          value={senha}
-          onChange={(e) => setSenha(e.target.value)}
-          style={styles.input}
-          required
-        />
-        <button type="submit" style={styles.button}>Entrar</button>
-        {erro && <p style={styles.error}>{erro}</p>}
-      </form>
+      <div style={{ marginBottom: "10px" }}>
+        <label>Email:</label>
+        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: "100%", padding: "8px", marginTop: "4px" }} />
+      </div>
+      <div style={{ marginBottom: "10px" }}>
+        <label>Senha:</label>
+        <input type={mostrarSenha ? "text" : "password"} value={senha} onChange={(e) => setSenha(e.target.value)} style={{ width: "100%", padding: "8px", marginTop: "4px" }} />
+        <label>
+          <input type="checkbox" checked={mostrarSenha} onChange={() => setMostrarSenha(!mostrarSenha)} /> Mostrar senha
+        </label>
+      </div>
+      <button onClick={handleLogin} style={{ width: "100%", padding: "10px", backgroundColor: "#22D4FD", border: "none", borderRadius: "5px", fontWeight: "bold", cursor: "pointer" }}>Login</button>
+      {mensagem && <div style={{ marginTop: "15px", color: "red", textAlign: "center" }}>{mensagem}</div>}
+      <div style={{ marginTop: "20px", textAlign: "center" }}>
+        <button onClick={onRegistrar} style={{ backgroundColor: "transparent", border: "none", color: "#007bff", textDecoration: "underline", cursor: "pointer" }}>
+          Não tem conta? Registrar
+        </button>
+      </div>
     </div>
   );
 }
-
-const styles = {
-  container: {
-    marginTop: "100px",
-    textAlign: "center",
-    fontFamily: "Arial, sans-serif",
-  },
-  form: {
-    display: "inline-block",
-    textAlign: "left",
-    background: "#f9f9f9",
-    padding: "30px",
-    borderRadius: "8px",
-    boxShadow: "0 0 10px rgba(0,0,0,0.1)",
-  },
-  input: {
-    width: "100%",
-    padding: "10px",
-    margin: "10px 0",
-    fontSize: "16px",
-  },
-  button: {
-    width: "100%",
-    padding: "10px",
-    backgroundColor: "#22D4FD",
-    color: "#000",
-    border: "none",
-    borderRadius: "5px",
-    fontWeight: "bold",
-    cursor: "pointer",
-    fontSize: "16px",
-  },
-  error: {
-    color: "red",
-    marginTop: "10px",
-  },
-};
 
 export default Login;

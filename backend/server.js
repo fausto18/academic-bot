@@ -25,27 +25,49 @@ app.use(cors({
 }));
 
 const upload = multer({ storage: multer.memoryStorage() });
-
 const usuarios = [
-  { id: 1, email: "faustosacufundala97@gmail.com", senha: bcrypt.hashSync("@Fausto18", 10) },
+  { id: 1, email: "faustosacufundala97@gmail.com", senha: bcrypt.hashSync("@Fausto18", 10), aprovado: true }
 ];
 
-function autenticarToken(req, res, next) {
-  const token = req.cookies.token;
-  if (!token) return res.sendStatus(401);
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) return res.sendStatus(403);
-    req.usuario = user;
-    next();
-  });
-}
+const pendentes = [];
+
+app.post("/register", (req, res) => {
+  const { email, senha } = req.body;
+  if (usuarios.some(u => u.email === email) || pendentes.some(u => u.email === email)) {
+    return res.status(409).json({ mensagem: "Email já cadastrado." });
+  }
+
+  const novoUsuario = {
+    id: Date.now(),
+    email,
+    senha: bcrypt.hashSync(senha, 10),
+    aprovado: false
+  };
+  pendentes.push(novoUsuario);
+  res.json({ mensagem: "Registro realizado com sucesso. Aguarde a aprovação do administrador." });
+});
+
+app.post("/aprovar", (req, res) => {
+  const { email } = req.body;
+
+  const index = pendentes.findIndex(u => u.email === email);
+  if (index === -1) return res.status(404).json({ mensagem: "Usuário não encontrado." });
+
+  const aprovado = pendentes.splice(index, 1)[0];
+  aprovado.aprovado = true;
+  usuarios.push(aprovado);
+
+  res.json({ mensagem: "Usuário aprovado com sucesso." });
+});
 
 app.post("/login", (req, res) => {
   const { email, senha } = req.body;
   const usuario = usuarios.find((u) => u.email === email);
-  if (!usuario || !bcrypt.compareSync(senha, usuario.senha)) {
-    return res.status(401).json({ mensagem: "Credenciais inválidas" });
+
+  if (!usuario || !usuario.aprovado || !bcrypt.compareSync(senha, usuario.senha)) {
+    return res.status(401).json({ mensagem: "Credenciais inválidas ou conta não aprovada." });
   }
+
   const token = jwt.sign({ id: usuario.id, email: usuario.email }, JWT_SECRET, { expiresIn: "2h" });
   res.cookie("token", token, {
     httpOnly: true,
@@ -56,10 +78,6 @@ app.post("/login", (req, res) => {
   res.json({ mensagem: "Login bem-sucedido" });
 });
 
-app.post("/logout", (req, res) => {
-  res.clearCookie("token");
-  res.json({ mensagem: "Logout realizado com sucesso" });
-});
 
 const secoesMapeadas = {
   introducao: ["Introdução", "Introducao"],
@@ -221,6 +239,11 @@ app.post("/upload", autenticarToken, upload.single("file"), async (req, res) => 
     res.status(500).send("Erro ao processar o PDF.");
   }
 });
+app.get("/pendentes", (req, res) => {
+  const listaEmails = pendentes.map((u) => ({ email: u.email }));
+  res.json(listaEmails);
+});
+
 
 app.listen(port, () => {
   console.log(`Servidor rodando na porta ${port}`);
