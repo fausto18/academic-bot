@@ -19,10 +19,11 @@ frontend/out/
 backend/dist/
 
 # React development cache
-frontend/.cache/
+frontend/node_modules/.cache/
 
 # Environment variables
 .env
+**/.cache
 .env.local
 .env.development.local
 .env.test.local
