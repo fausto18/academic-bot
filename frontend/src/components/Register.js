@@ -1,13 +1,15 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
-import SectionDisplay from "./components/SectionDisplay.jsx";
-import VisualizadorPDF from "./components/VisualizadorPDF.jsx";
-import Login from "./components/Login.jsx";
-import Register from "./components/Register.jsx";
-import AdminPanel from "./components/AdminPanel.jsx";
+import SectionDisplay from "./SectionDisplay.js";
+import VisualizadorPDF from "./VisualizadorPDF.js";
+import Login from "./Login.js";
+import Register from "./Register.js";
+import AdminPanel from "./AdminPanel.js";
+import "../App.css";
 
 function App() {
   const [autenticado, setAutenticado] = useState(false);
+  const [usuarioEmail, setUsuarioEmail] = useState("");
   const [mostrarRegistro, setMostrarRegistro] = useState(false);
   const [file, setFile] = useState(null);
   const [showPDF, setShowPDF] = useState(false);
@@ -23,6 +25,21 @@ function App() {
   const [avaliacaoConclusao, setAvaliacaoConclusao] = useState("");
   const [loading, setLoading] = useState(false);
   const [theme, setTheme] = useState("light");
+
+  useEffect(() => {
+    const verificarAutenticacao = async () => {
+      try {
+        const res = await axios.get("https://academic-bot-production.up.railway.app/verificar", {
+          withCredentials: true,
+        });
+        setAutenticado(true);
+        setUsuarioEmail(res.data.email);
+      } catch {
+        setAutenticado(false);
+      }
+    };
+    verificarAutenticacao();
+  }, []);
 
   const lightTheme = {
     backgroundColor: "#ffffff",
@@ -111,6 +128,10 @@ function App() {
     );
   }
 
+  if (usuarioEmail === "fausto.sacufundala1997@gmail.com") {
+    return <AdminPanel />;
+  }
+
   return (
     <>
       {loading && (
@@ -129,9 +150,7 @@ function App() {
 
         <div>
           <input type="file" accept="application/pdf" onChange={handleFileChange} />
-          <button onClick={handleUpload} style={buttonStyle} disabled={loading}>
-            Enviar
-          </button>
+          <button onClick={handleUpload} style={buttonStyle} disabled={loading}>Enviar</button>
         </div>
 
         {showPDF && file && <VisualizadorPDF file={file} />}
@@ -158,40 +177,20 @@ function App() {
 
             <hr />
             <h2>Avaliação da Convergência entre Objetivos e Resultados</h2>
-            <blockquote style={{
-              background: themeStyles.backgroundBlockquote,
-              color: themeStyles.color,
-              padding: "10px",
-              borderRadius: "6px",
-              textAlign: "left",
-            }}>
+            <blockquote style={{ background: themeStyles.backgroundBlockquote, color: themeStyles.color, padding: "10px", borderRadius: "6px", textAlign: "left" }}>
               {avaliacaoConvergencia || "Não foi possível avaliar a convergência."}
             </blockquote>
 
             <hr />
             <h2>Avaliação da Conclusão</h2>
-            <blockquote style={{
-              background: themeStyles.backgroundBlockquote,
-              color: themeStyles.color,
-              padding: "10px",
-              borderRadius: "6px",
-              textAlign: "left",
-            }}>
+            <blockquote style={{ background: themeStyles.backgroundBlockquote, color: themeStyles.color, padding: "10px", borderRadius: "6px", textAlign: "left" }}>
               {avaliacaoConclusao || "Não foi possível avaliar a conclusão."}
             </blockquote>
           </>
         )}
       </div>
 
-      <footer style={{
-        color: "#000000",
-        backgroundColor: "#22D4FD",
-        padding: "16px",
-        textAlign: "center",
-        fontFamily: "'Montserrat', sans-serif",
-        fontSize: "16px",
-        fontWeight: 400,
-      }}>
+      <footer style={{ color: "#000000", backgroundColor: "#22D4FD", padding: "16px", textAlign: "center", fontFamily: "'Montserrat', sans-serif", fontSize: "16px", fontWeight: 400 }}>
         © 2025 METANOIA TECHNOLOGY. Todos os direitos reservados.
       </footer>
     </>

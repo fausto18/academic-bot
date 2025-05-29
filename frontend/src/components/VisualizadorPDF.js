@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
-import workerSrc from "pdfjs-dist/build/pdf.worker.entry";
+import "react-pdf/dist/esm/Page/AnnotationLayer.css";
+import "react-pdf/dist/esm/Page/TextLayer.css";
 
-pdfjs.GlobalWorkerOptions.workerSrc = workerSrc;
+// ✅ Aqui vai uma string literal para o worker (não é import!)
+pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.js`;
 
 function VisualizadorPDF({ file }) {
   const [numPages, setNumPages] = useState(null);

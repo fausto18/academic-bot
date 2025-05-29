@@ -7,6 +7,7 @@ import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
+
 dotenv.config();
 
 const app = express();
@@ -18,30 +19,46 @@ const JWT_SECRET = process.env.JWT_SECRET || "segredo_forte";
 app.use(express.json());
 app.use(cookieParser());
 
+// CORS dinâmico com lista de origens permitidas
+const allowedOrigins = [
+  "http://localhost:3000",
+  "https://academic-bot-five.vercel.app"
+];
+
 app.use(cors({
-  origin: "https://academic-bot-five.vercel.app",
+  origin: function (origin, callback) {
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
   methods: ["GET", "POST"],
   credentials: true,
 }));
 
 const upload = multer({ storage: multer.memoryStorage() });
+
 const usuarios = [
-  { id: 1, email: "fausto.sacufundala1997@gmail.com", senha: bcrypt.hashSync("Metanoia18", 10), aprovado: true }
+  {
+    id: 1,
+    email: "fausto.sacufundala1997@gmail.com",
+    senha: bcrypt.hashSync("Metanoia18", 10),
+    aprovado: true
+  }
 ];
 
 const pendentes = [];
 
 function autenticarToken(req, res, next) {
   const token = req.cookies.token;
-  if (!token) {
-    return res.status(401).json({ mensagem: "Token não fornecido." });
-  }
+  if (!token) return res.status(401).json({ mensagem: "Token não fornecido." });
 
   try {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.usuario = decoded;
     next();
-  } catch (err) {
+  } catch {
     return res.status(401).json({ mensagem: "Token inválido." });
   }
 }
@@ -64,20 +81,18 @@ app.post("/register", (req, res) => {
 
 app.post("/aprovar", (req, res) => {
   const { email } = req.body;
-
   const index = pendentes.findIndex(u => u.email === email);
   if (index === -1) return res.status(404).json({ mensagem: "Usuário não encontrado." });
 
   const aprovado = pendentes.splice(index, 1)[0];
   aprovado.aprovado = true;
   usuarios.push(aprovado);
-
   res.json({ mensagem: "Usuário aprovado com sucesso." });
 });
 
 app.post("/login", (req, res) => {
   const { email, senha } = req.body;
-  const usuario = usuarios.find((u) => u.email === email);
+  const usuario = usuarios.find(u => u.email === email);
 
   if (!usuario || !usuario.aprovado || !bcrypt.compareSync(senha, usuario.senha)) {
     return res.status(401).json({ mensagem: "Credenciais inválidas ou conta não aprovada." });
@@ -87,8 +102,8 @@ app.post("/login", (req, res) => {
   res.cookie("token", token, {
     httpOnly: true,
     secure: true,
-    sameSite: "None",
-    maxAge: 2 * 60 * 60 * 1000,
+    sameSite: "Lax",
+    maxAge: 2 * 60 * 60 * 1000
   });
   res.json({ mensagem: "Login bem-sucedido" });
 });
@@ -97,7 +112,7 @@ const secoesMapeadas = {
   introducao: ["Introdução", "Introducao"],
   objetivos: ["Objetivos", "Objetivo", "Objectivos", "Objectivo"],
   resultados: ["Resultados", "Resultados obtidos"],
-  conclusao: ["Conclusão", "Conclusao", "Considerações finais"],
+  conclusao: ["Conclusão", "Conclusao", "Considerações finais"]
 };
 
 function isQuotaExceeded(error) {
@@ -131,7 +146,7 @@ async function corrigirTexto(texto) {
       model: "gpt-4o",
       prompt,
       max_tokens: 500,
-      temperature: 0.3,
+      temperature: 0.3
     });
     return completion.choices[0].text.trim();
   } catch (error) {
@@ -148,7 +163,7 @@ async function avaliarParagrafos(texto) {
       model: "gpt-4o",
       prompt,
       max_tokens: 500,
-      temperature: 0.4,
+      temperature: 0.4
     });
     return completion.choices[0].text.trim();
   } catch (error) {
@@ -166,7 +181,7 @@ async function sugestaoMelhoriasIntroducao(introducao) {
       model: "gpt-4o",
       prompt,
       max_tokens: 400,
-      temperature: 0.7,
+      temperature: 0.7
     });
     return completion.choices[0].text.trim();
   } catch (error) {
@@ -184,7 +199,7 @@ async function avaliarConvergencia(objetivos, resultados) {
       model: "gpt-4o",
       prompt,
       max_tokens: 300,
-      temperature: 0.2,
+      temperature: 0.2
     });
     return completion.choices[0].text.trim();
   } catch (error) {
@@ -200,15 +215,15 @@ async function avaliarMetasEConclusoes(metas, conclusoes) {
     { role: "system", content: "Você é um avaliador de trabalhos acadêmicos." },
     {
       role: "user",
-      content: `Metas (Objetivos):\n${metas}\n\nConclusões:\n${conclusoes}\n\nPor favor, forneça uma análise completa e sugestões de melhoria.`,
-    },
+      content: `Metas (Objetivos):\n${metas}\n\nConclusões:\n${conclusoes}\n\nPor favor, forneça uma análise completa e sugestões de melhoria.`
+    }
   ];
 
   try {
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages,
-      max_tokens: 500,
+      max_tokens: 500
     });
     return completion.choices[0].message.content;
   } catch (error) {
@@ -246,7 +261,7 @@ app.post("/upload", autenticarToken, upload.single("file"), async (req, res) => 
       resultados,
       conclusao,
       avaliacaoConvergencia,
-      avaliacaoConclusao: avaliacaoMetasConclusoes,
+      avaliacaoConclusao: avaliacaoMetasConclusoes
     });
   } catch (error) {
     console.error("Erro no processamento:", error);
@@ -255,7 +270,7 @@ app.post("/upload", autenticarToken, upload.single("file"), async (req, res) => 
 });
 
 app.get("/pendentes", (req, res) => {
-  const listaEmails = pendentes.map((u) => ({ email: u.email }));
+  const listaEmails = pendentes.map(u => ({ email: u.email }));
   res.json(listaEmails);
 });
 

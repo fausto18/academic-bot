@@ -1,4 +1,4 @@
-// frontend/src/components/SectionDisplay.jsx
+// frontend/src/components/SectionDisplay.js
 
 import React from "react";
 
