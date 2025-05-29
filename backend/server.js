@@ -26,7 +26,7 @@ app.use(cors({
 
 const upload = multer({ storage: multer.memoryStorage() });
 const usuarios = [
-  { id: 1, email: "faustosacufundala97@gmail.com", senha: bcrypt.hashSync("@Fausto18", 10), aprovado: true }
+  { id: 1, email: "fausto.sacufundala1997@gmail.com", senha: bcrypt.hashSync("Metanoia18", 10), aprovado: true }
 ];
 
 const pendentes = [];
