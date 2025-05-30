@@ -17,11 +17,13 @@ const port = process.env.PORT || 5000;
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const JWT_SECRET = process.env.JWT_SECRET || "segredo_forte";
 
+// PostgreSQL connection
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
 });
 
+// Middlewares
 app.use(express.json());
 app.use(cookieParser());
 
@@ -44,6 +46,7 @@ app.use(cors({
 
 const upload = multer({ storage: multer.memoryStorage() });
 
+// Autenticação via token
 function autenticarToken(req, res, next) {
   const token = req.cookies.token;
   if (!token) return res.status(401).json({ mensagem: "Token não fornecido." });
@@ -57,10 +60,12 @@ function autenticarToken(req, res, next) {
   }
 }
 
+// Rota para verificar autenticação
 app.get("/verificar", autenticarToken, (req, res) => {
   res.json({ mensagem: "Usuário autenticado", email: req.usuario.email });
 });
 
+// Registro de novo usuário
 app.post("/register", async (req, res) => {
   const { email, senha } = req.body;
   try {
@@ -82,6 +87,7 @@ app.post("/register", async (req, res) => {
   }
 });
 
+// Aprovação de usuários pelo admin
 app.post("/aprovar", async (req, res) => {
   const { email } = req.body;
   try {
@@ -96,6 +102,7 @@ app.post("/aprovar", async (req, res) => {
   }
 });
 
+// Login
 app.post("/login", async (req, res) => {
   const { email, senha } = req.body;
   try {
@@ -107,6 +114,7 @@ app.post("/login", async (req, res) => {
     }
 
     const token = jwt.sign({ id: usuario.id, email: usuario.email }, JWT_SECRET, { expiresIn: "2h" });
+
     res.cookie("token", token, {
       httpOnly: true,
       secure: true,
@@ -121,6 +129,17 @@ app.post("/login", async (req, res) => {
   }
 });
 
+// Logout
+app.post("/logout", (req, res) => {
+  res.clearCookie("token", {
+    httpOnly: true,
+    secure: true,
+    sameSite: "Lax"
+  });
+  res.json({ mensagem: "Logout realizado com sucesso." });
+});
+
+// Mapeamento de seções para extração
 const secoesMapeadas = {
   introducao: ["Introdução", "Introducao"],
   objetivos: ["Objetivos", "Objetivo", "Objectivos", "Objectivo"],
@@ -142,6 +161,7 @@ function isQuotaExceeded(error) {
   return error?.status === 429 && (error?.code === "insufficient_quota" || error?.error?.code === "insufficient_quota");
 }
 
+// Funções de avaliação usando OpenAI
 async function corrigirTexto(texto) {
   try {
     const prompt = `Corrija os erros ortográficos:\n\n${texto}`;
@@ -204,6 +224,7 @@ async function avaliarMetasEConclusoes(metas, conclusoes) {
   }
 }
 
+// Upload e análise de PDF
 app.post("/upload", autenticarToken, upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).send("Nenhum arquivo enviado.");
 

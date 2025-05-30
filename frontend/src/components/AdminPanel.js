@@ -1,31 +1,18 @@
-// src/components/AdminPanel.js
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import axios from "axios";
 
 function AdminPanel() {
-  const [pendentes, setPendentes] = useState([]);
+  const [usuariosPendentes, setUsuariosPendentes] = useState([]);
   const [mensagem, setMensagem] = useState("");
 
   const buscarPendentes = async () => {
     try {
-      const response = await axios.get("https://academic-bot-production.up.railway.app/pendentes", {
+      const res = await axios.get("https://academic-bot-production.up.railway.app/usuarios/pendentes", {
         withCredentials: true,
       });
-      setPendentes(response.data);
-    } catch (error) {
-      setMensagem("Erro ao buscar usuários pendentes.");
-    }
-  };
-
-  const aprovarUsuario = async (email) => {
-    try {
-      const response = await axios.post("https://academic-bot-production.up.railway.app/aprovar", { email }, {
-        withCredentials: true,
-      });
-      setMensagem(response.data.mensagem);
-      buscarPendentes(); // atualizar lista
-    } catch (error) {
-      setMensagem("Erro ao aprovar usuário.");
+      setUsuariosPendentes(res.data);
+    } catch (err) {
+      setMensagem("Erro ao buscar usuários.");
     }
   };
 
@@ -33,20 +20,91 @@ function AdminPanel() {
     buscarPendentes();
   }, []);
 
+  const aprovar = async (id) => {
+    try {
+      await axios.post(`https://academic-bot-production.up.railway.app/usuarios/aprovar/${id}`, {}, {
+        withCredentials: true,
+      });
+      setMensagem("Usuário aprovado com sucesso.");
+      buscarPendentes();
+    } catch {
+      setMensagem("Erro ao aprovar usuário.");
+    }
+  };
+
+  const rejeitar = async (id) => {
+    try {
+      await axios.delete(`https://academic-bot-production.up.railway.app/usuarios/${id}`, {
+        withCredentials: true,
+      });
+      setMensagem("Usuário rejeitado e removido.");
+      buscarPendentes();
+    } catch {
+      setMensagem("Erro ao rejeitar usuário.");
+    }
+  };
+
   return (
-    <div style={{ padding: "20px" }}>
-      <h2>Painel do Administrador</h2>
-      {mensagem && <p>{mensagem}</p>}
-      <ul>
-        {pendentes.map((user) => (
-          <li key={user.email} style={{ marginBottom: "10px" }}>
-            {user.email}
-            <button onClick={() => aprovarUsuario(user.email)} style={{ marginLeft: "10px", padding: "5px" }}>
-              Aprovar
-            </button>
-          </li>
-        ))}
-      </ul>
+    <div style={{
+      padding: "20px",
+      maxWidth: "600px",
+      margin: "0 auto",
+      fontFamily: "Arial, sans-serif",
+    }}>
+      <h2 style={{ textAlign: "center" }}>Painel de Administração</h2>
+
+      {mensagem && (
+        <div style={{ marginBottom: "15px", color: "green", textAlign: "center" }}>
+          {mensagem}
+        </div>
+      )}
+
+      {usuariosPendentes.length === 0 ? (
+        <p style={{ textAlign: "center" }}>Nenhum usuário pendente.</p>
+      ) : (
+        <ul style={{ listStyle: "none", padding: 0 }}>
+          {usuariosPendentes.map((usuario) => (
+            <li key={usuario.id} style={{
+              padding: "10px",
+              borderBottom: "1px solid #ccc",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center"
+            }}>
+              <span>{usuario.email}</span>
+              <div>
+                <button
+                  onClick={() => aprovar(usuario.id)}
+                  style={{
+                    marginRight: "10px",
+                    backgroundColor: "green",
+                    color: "#fff",
+                    border: "none",
+                    padding: "6px 12px",
+                    borderRadius: "4px",
+                    cursor: "pointer"
+                  }}
+                >
+                  Aprovar
+                </button>
+                <button
+                  onClick={() => rejeitar(usuario.id)}
+                  style={{
+                    backgroundColor: "red",
+                    color: "#fff",
+                    border: "none",
+                    padding: "6px 12px",
+                    borderRadius: "4px",
+                    cursor: "pointer"
+                  }}
+                >
+                  Rejeitar
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

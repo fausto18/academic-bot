@@ -1,200 +1,127 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import axios from "axios";
-import SectionDisplay from "./SectionDisplay.js";
-import VisualizadorPDF from "./VisualizadorPDF.js";
-import Login from "./Login.js";
-import Register from "./Register.js";
-import AdminPanel from "./AdminPanel.js";
-import "../App.css";
 
-function App() {
-  const [autenticado, setAutenticado] = useState(false);
-  const [usuarioEmail, setUsuarioEmail] = useState("");
-  const [mostrarRegistro, setMostrarRegistro] = useState(false);
-  const [file, setFile] = useState(null);
-  const [showPDF, setShowPDF] = useState(false);
-  const [textoExtraido, setTextoExtraido] = useState("");
-  const [errosOrtograficos, setErrosOrtograficos] = useState("");
-  const [paragrafosMalElaborados, setParagrafosMalElaborados] = useState("");
-  const [introducao, setIntroducao] = useState("");
-  const [sugestoesIntroducao, setSugestoesIntroducao] = useState("");
-  const [objetivos, setObjetivos] = useState("");
-  const [resultados, setResultados] = useState("");
-  const [avaliacaoConvergencia, setAvaliacaoConvergencia] = useState("");
-  const [conclusao, setConclusao] = useState("");
-  const [avaliacaoConclusao, setAvaliacaoConclusao] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [theme, setTheme] = useState("light");
+function Register({ onVoltar }) {
+  const [email, setEmail] = useState("");
+  const [senha, setSenha] = useState("");
+  const [mensagem, setMensagem] = useState("");
+  const [carregando, setCarregando] = useState(false);
 
-  useEffect(() => {
-    const verificarAutenticacao = async () => {
-      try {
-        const res = await axios.get("https://academic-bot-production.up.railway.app/verificar", {
-          withCredentials: true,
-        });
-        setAutenticado(true);
-        setUsuarioEmail(res.data.email);
-      } catch {
-        setAutenticado(false);
-      }
-    };
-    verificarAutenticacao();
-  }, []);
-
-  const lightTheme = {
-    backgroundColor: "#ffffff",
-    color: "#000000",
-    backgroundBlockquote: "#f0f0f0",
-    suggestionBlockquote: "#e6ffe6",
-  };
-
-  const darkTheme = {
-    backgroundColor: "#000000",
-    color: "#ffffff",
-    backgroundBlockquote: "#333333",
-    suggestionBlockquote: "#444444",
-  };
-
-  const themeStyles = theme === "light" ? lightTheme : darkTheme;
-
-  const buttonStyle = {
-    padding: "10px 20px",
-    margin: "5px",
-    backgroundColor: "#22D4FD",
-    border: "none",
-    borderRadius: "5px",
-    color: "#000",
-    fontWeight: "bold",
-    cursor: "pointer",
-  };
-
-  const preStyle = {
-    background: themeStyles.backgroundBlockquote,
-    color: themeStyles.color,
-    padding: "10px",
-    whiteSpace: "pre-wrap",
-    fontFamily: "source-code-pro, Menlo, Monaco, Consolas, 'Courier New', monospace",
-    textAlign: "left",
-    borderRadius: "6px",
-    overflowX: "auto",
-  };
-
-  const handleFileChange = (event) => {
-    setFile(event.target.files[0]);
-    setShowPDF(true);
-  };
-
-  const handleUpload = async () => {
-    if (!file) {
-      alert("Selecione um arquivo PDF");
+  const handleRegistro = async () => {
+    if (!email || !senha) {
+      setMensagem("Preencha todos os campos.");
       return;
     }
 
-    setLoading(true);
-    setShowPDF(false);
-
-    const formData = new FormData();
-    formData.append("file", file);
+    setCarregando(true);
+    setMensagem("");
 
     try {
-      const response = await axios.post("https://academic-bot-production.up.railway.app/upload", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-        withCredentials: true,
-      });
-      const data = response.data;
-      setTextoExtraido(data.textoExtraido);
-      setErrosOrtograficos(data.errosOrtograficos);
-      setParagrafosMalElaborados(data.paragrafosMalElaborados);
-      setIntroducao(data.introducao);
-      setSugestoesIntroducao(data.sugestoesIntroducao);
-      setObjetivos(data.objetivos);
-      setResultados(data.resultados);
-      setAvaliacaoConvergencia(data.avaliacaoConvergencia);
-      setConclusao(data.conclusao);
-      setAvaliacaoConclusao(data.avaliacaoConclusao);
+      const response = await axios.post(
+        "https://academic-bot-production.up.railway.app/registrar",
+        { email, senha }
+      );
+
+      if (response.data?.mensagem) {
+        setMensagem(response.data.mensagem);
+      } else {
+        setMensagem("Registro efetuado com sucesso.");
+      }
     } catch (error) {
-      console.error(error);
-      alert("Erro ao processar o PDF");
+      setMensagem("Erro ao registrar. Email pode já estar em uso.");
     }
 
-    setLoading(false);
+    setCarregando(false);
   };
 
-  if (!autenticado) {
-    return mostrarRegistro ? (
-      <Register onVoltar={() => setMostrarRegistro(false)} />
-    ) : (
-      <Login onLogin={setAutenticado} onRegistrar={() => setMostrarRegistro(true)} />
-    );
-  }
-
-  if (usuarioEmail === "fausto.sacufundala1997@gmail.com") {
-    return <AdminPanel />;
-  }
-
   return (
-    <>
-      {loading && (
-        <div className="loading-overlay">
-          <div className="loading-spinner"></div>
+    <div style={{
+      maxWidth: "400px",
+      margin: "50px auto",
+      padding: "30px",
+      backgroundColor: "#f9f9f9",
+      borderRadius: "10px",
+      fontFamily: "Arial",
+      boxShadow: "0 0 10px rgba(0,0,0,0.1)"
+    }}>
+      <h2 style={{ textAlign: "center" }}>Registrar</h2>
+
+      <div style={{ marginBottom: "10px" }}>
+        <label>Email:</label>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "8px",
+            marginTop: "4px",
+            borderRadius: "4px",
+            border: "1px solid #ccc"
+          }}
+        />
+      </div>
+
+      <div style={{ marginBottom: "10px" }}>
+        <label>Senha:</label>
+        <input
+          type="password"
+          value={senha}
+          onChange={(e) => setSenha(e.target.value)}
+          style={{
+            width: "100%",
+            padding: "8px",
+            marginTop: "4px",
+            borderRadius: "4px",
+            border: "1px solid #ccc"
+          }}
+        />
+      </div>
+
+      <button
+        onClick={handleRegistro}
+        disabled={carregando}
+        style={{
+          width: "100%",
+          padding: "10px",
+          backgroundColor: "#22D4FD",
+          border: "none",
+          borderRadius: "5px",
+          fontWeight: "bold",
+          cursor: carregando ? "not-allowed" : "pointer",
+          opacity: carregando ? 0.7 : 1
+        }}
+      >
+        {carregando ? "Registrando..." : "Registrar"}
+      </button>
+
+      {mensagem && (
+        <div style={{
+          marginTop: "15px",
+          color: mensagem.includes("sucesso") ? "green" : "red",
+          textAlign: "center",
+          fontWeight: "bold"
+        }}>
+          {mensagem}
         </div>
       )}
 
-      <div style={{ ...themeStyles, padding: "20px", fontFamily: "Arial, sans-serif", minHeight: "100vh" }}>
-        <h1>Revisão de Trabalhos Acadêmicos</h1>
-
-        <div style={{ marginBottom: "25px" }}>
-          <button onClick={() => setTheme("light")} style={buttonStyle}>Tema Claro</button>
-          <button onClick={() => setTheme("dark")} style={buttonStyle}>Tema Escuro</button>
-        </div>
-
-        <div>
-          <input type="file" accept="application/pdf" onChange={handleFileChange} />
-          <button onClick={handleUpload} style={buttonStyle} disabled={loading}>Enviar</button>
-        </div>
-
-        {showPDF && file && <VisualizadorPDF file={file} />}
-
-        {!loading && textoExtraido && (
-          <>
-            <hr />
-            <h2>Texto Extraído</h2>
-            <pre style={preStyle}>{textoExtraido}</pre>
-
-            <hr />
-            <h2>Erros Ortográficos</h2>
-            <pre style={preStyle}>{errosOrtograficos}</pre>
-
-            <hr />
-            <h2>Parágrafos Mal Elaborados</h2>
-            <pre style={preStyle}>{paragrafosMalElaborados}</pre>
-
-            <hr />
-            <SectionDisplay title="Introdução" content={introducao} suggestion={sugestoesIntroducao} themeStyles={themeStyles} />
-            <SectionDisplay title="Objetivos" content={objetivos} themeStyles={themeStyles} />
-            <SectionDisplay title="Resultados" content={resultados} themeStyles={themeStyles} />
-            <SectionDisplay title="Conclusão" content={conclusao} themeStyles={themeStyles} />
-
-            <hr />
-            <h2>Avaliação da Convergência entre Objetivos e Resultados</h2>
-            <blockquote style={{ background: themeStyles.backgroundBlockquote, color: themeStyles.color, padding: "10px", borderRadius: "6px", textAlign: "left" }}>
-              {avaliacaoConvergencia || "Não foi possível avaliar a convergência."}
-            </blockquote>
-
-            <hr />
-            <h2>Avaliação da Conclusão</h2>
-            <blockquote style={{ background: themeStyles.backgroundBlockquote, color: themeStyles.color, padding: "10px", borderRadius: "6px", textAlign: "left" }}>
-              {avaliacaoConclusao || "Não foi possível avaliar a conclusão."}
-            </blockquote>
-          </>
-        )}
+      <div style={{ marginTop: "20px", textAlign: "center" }}>
+        <button
+          onClick={onVoltar}
+          style={{
+            backgroundColor: "transparent",
+            border: "none",
+            color: "#007bff",
+            textDecoration: "underline",
+            cursor: "pointer"
+          }}
+        >
+          Já tem conta? Fazer Login
+        </button>
       </div>
-
-      <footer style={{ color: "#000000", backgroundColor: "#22D4FD", padding: "16px", textAlign: "center", fontFamily: "'Montserrat', sans-serif", fontSize: "16px", fontWeight: 400 }}>
-        © 2025 METANOIA TECHNOLOGY. Todos os direitos reservados.
-      </footer>
-    </>
+    </div>
   );
 }
 
-export default App;
+export default Register;
