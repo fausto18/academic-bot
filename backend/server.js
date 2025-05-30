@@ -7,22 +7,27 @@ import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
+import pkg from "pg";
 
 dotenv.config();
+const { Pool } = pkg;
 
 const app = express();
-const port = 5000;
-
+const port = process.env.PORT || 5000;
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const JWT_SECRET = process.env.JWT_SECRET || "segredo_forte";
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+});
 
 app.use(express.json());
 app.use(cookieParser());
 
-// CORS dinâmico com lista de origens permitidas
 const allowedOrigins = [
   "http://localhost:3000",
-  "https://academic-bot-five.vercel.app"
+  "https://academic-bot-five.vercel.app",
 ];
 
 app.use(cors({
@@ -39,17 +44,6 @@ app.use(cors({
 
 const upload = multer({ storage: multer.memoryStorage() });
 
-const usuarios = [
-  {
-    id: 1,
-    email: "fausto.sacufundala1997@gmail.com",
-    senha: bcrypt.hashSync("Metanoia18", 10),
-    aprovado: true
-  }
-];
-
-const pendentes = [];
-
 function autenticarToken(req, res, next) {
   const token = req.cookies.token;
   if (!token) return res.status(401).json({ mensagem: "Token não fornecido." });
@@ -63,49 +57,68 @@ function autenticarToken(req, res, next) {
   }
 }
 
-app.post("/register", (req, res) => {
-  const { email, senha } = req.body;
-  if (usuarios.some(u => u.email === email) || pendentes.some(u => u.email === email)) {
-    return res.status(409).json({ mensagem: "Email já cadastrado." });
-  }
-
-  const novoUsuario = {
-    id: Date.now(),
-    email,
-    senha: bcrypt.hashSync(senha, 10),
-    aprovado: false
-  };
-  pendentes.push(novoUsuario);
-  res.json({ mensagem: "Registro realizado com sucesso. Aguarde a aprovação do administrador." });
+app.get("/verificar", autenticarToken, (req, res) => {
+  res.json({ mensagem: "Usuário autenticado", email: req.usuario.email });
 });
 
-app.post("/aprovar", (req, res) => {
+app.post("/register", async (req, res) => {
+  const { email, senha } = req.body;
+  try {
+    const existe = await pool.query("SELECT * FROM usuarios WHERE email = $1", [email]);
+    if (existe.rows.length > 0) {
+      return res.status(409).json({ mensagem: "Email já cadastrado." });
+    }
+
+    const senhaHash = await bcrypt.hash(senha, 10);
+    await pool.query(
+      "INSERT INTO usuarios (email, senha, aprovado) VALUES ($1, $2, $3)",
+      [email, senhaHash, false]
+    );
+
+    res.json({ mensagem: "Registro realizado com sucesso. Aguarde a aprovação do administrador." });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensagem: "Erro ao registrar." });
+  }
+});
+
+app.post("/aprovar", async (req, res) => {
   const { email } = req.body;
-  const index = pendentes.findIndex(u => u.email === email);
-  if (index === -1) return res.status(404).json({ mensagem: "Usuário não encontrado." });
-
-  const aprovado = pendentes.splice(index, 1)[0];
-  aprovado.aprovado = true;
-  usuarios.push(aprovado);
-  res.json({ mensagem: "Usuário aprovado com sucesso." });
+  try {
+    const result = await pool.query("UPDATE usuarios SET aprovado = true WHERE email = $1 RETURNING *", [email]);
+    if (result.rowCount === 0) {
+      return res.status(404).json({ mensagem: "Usuário não encontrado." });
+    }
+    res.json({ mensagem: "Usuário aprovado com sucesso." });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensagem: "Erro ao aprovar usuário." });
+  }
 });
 
-app.post("/login", (req, res) => {
+app.post("/login", async (req, res) => {
   const { email, senha } = req.body;
-  const usuario = usuarios.find(u => u.email === email);
+  try {
+    const result = await pool.query("SELECT * FROM usuarios WHERE email = $1", [email]);
+    const usuario = result.rows[0];
 
-  if (!usuario || !usuario.aprovado || !bcrypt.compareSync(senha, usuario.senha)) {
-    return res.status(401).json({ mensagem: "Credenciais inválidas ou conta não aprovada." });
+    if (!usuario || !usuario.aprovado || !bcrypt.compareSync(senha, usuario.senha)) {
+      return res.status(401).json({ mensagem: "Credenciais inválidas ou conta não aprovada." });
+    }
+
+    const token = jwt.sign({ id: usuario.id, email: usuario.email }, JWT_SECRET, { expiresIn: "2h" });
+    res.cookie("token", token, {
+      httpOnly: true,
+      secure: true,
+      sameSite: "Lax",
+      maxAge: 2 * 60 * 60 * 1000,
+    });
+
+    res.json({ mensagem: "Login bem-sucedido" });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ mensagem: "Erro ao efetuar login." });
   }
-
-  const token = jwt.sign({ id: usuario.id, email: usuario.email }, JWT_SECRET, { expiresIn: "2h" });
-  res.cookie("token", token, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "Lax",
-    maxAge: 2 * 60 * 60 * 1000
-  });
-  res.json({ mensagem: "Login bem-sucedido" });
 });
 
 const secoesMapeadas = {
@@ -115,97 +128,63 @@ const secoesMapeadas = {
   conclusao: ["Conclusão", "Conclusao", "Considerações finais"]
 };
 
-function isQuotaExceeded(error) {
-  return (
-    error?.status === 429 &&
-    (error?.code === "insufficient_quota" ||
-      error?.error?.code === "insufficient_quota")
-  );
-}
-
 function extrairSecao(tipo, texto) {
   const nomesPossiveis = secoesMapeadas[tipo];
-  if (!nomesPossiveis) return "";
-
   for (const nome of nomesPossiveis) {
-    const regex = new RegExp(
-      `-?\\s*${nome}( geral| específicos)?\\s*:?\\s*\\n?([\\s\\S]*?)(?=\\n\\s*[-–]?\\s*[A-Z])`,
-      "i"
-    );
+    const regex = new RegExp(`-?\\s*${nome}( geral| específicos)?\\s*:?\\s*\\n?([\\s\\S]*?)(?=\\n\\s*[-–]?\\s*[A-Z])`, "i");
     const match = texto.match(regex);
     if (match) return match[2].trim();
   }
-
   return "";
+}
+
+function isQuotaExceeded(error) {
+  return error?.status === 429 && (error?.code === "insufficient_quota" || error?.error?.code === "insufficient_quota");
 }
 
 async function corrigirTexto(texto) {
   try {
-    const prompt = `Corrija os erros ortográficos no seguinte texto e apresente as sugestões de correção:\n\n${texto}`;
-    const completion = await openai.completions.create({
-      model: "gpt-4o",
-      prompt,
-      max_tokens: 500,
-      temperature: 0.3
-    });
+    const prompt = `Corrija os erros ortográficos:\n\n${texto}`;
+    const completion = await openai.completions.create({ model: "gpt-4o", prompt, max_tokens: 500, temperature: 0.3 });
     return completion.choices[0].text.trim();
   } catch (error) {
     console.error("Erro na correção ortográfica:", error);
-    if (isQuotaExceeded(error)) return "Limite de uso da API da OpenAI excedido.";
-    return "Erro na correção ortográfica.";
+    return isQuotaExceeded(error) ? "Limite de uso da API da OpenAI excedido." : "Erro na correção ortográfica.";
   }
 }
 
 async function avaliarParagrafos(texto) {
   try {
-    const prompt = `Identifique parágrafos mal elaborados no seguinte texto e sugira melhorias:\n\n${texto}`;
-    const completion = await openai.completions.create({
-      model: "gpt-4o",
-      prompt,
-      max_tokens: 500,
-      temperature: 0.4
-    });
+    const prompt = `Identifique parágrafos mal elaborados:\n\n${texto}`;
+    const completion = await openai.completions.create({ model: "gpt-4o", prompt, max_tokens: 500, temperature: 0.4 });
     return completion.choices[0].text.trim();
   } catch (error) {
-    console.error("Erro na análise de parágrafos:", error);
-    if (isQuotaExceeded(error)) return "Limite de uso da API da OpenAI excedido.";
-    return "Erro na avaliação de parágrafos.";
+    console.error("Erro na avaliação de parágrafos:", error);
+    return isQuotaExceeded(error) ? "Limite de uso da API da OpenAI excedido." : "Erro na avaliação de parágrafos.";
   }
 }
 
 async function sugestaoMelhoriasIntroducao(introducao) {
   if (!introducao) return "Introdução não encontrada.";
   try {
-    const prompt = `Analise a introdução abaixo e sugira melhorias:\n\n${introducao}`;
-    const completion = await openai.completions.create({
-      model: "gpt-4o",
-      prompt,
-      max_tokens: 400,
-      temperature: 0.7
-    });
+    const prompt = `Sugira melhorias para a introdução:\n\n${introducao}`;
+    const completion = await openai.completions.create({ model: "gpt-4o", prompt, max_tokens: 400, temperature: 0.7 });
     return completion.choices[0].text.trim();
   } catch (error) {
     console.error("Erro na introdução:", error);
-    if (isQuotaExceeded(error)) return "Limite de uso da API da OpenAI excedido.";
-    return "Erro na sugestão de melhorias para a introdução.";
+    return isQuotaExceeded(error) ? "Limite de uso da API da OpenAI excedido." : "Erro na sugestão da introdução.";
   }
 }
 
 async function avaliarConvergencia(objetivos, resultados) {
-  if (!objetivos || !resultados) return "Seção de Objetivos ou Resultados não encontrada.";
+  if (!objetivos || !resultados) return "Objetivos ou Resultados não encontrados.";
   try {
-    const prompt = `Analise se os resultados apresentados estão alinhados com os objetivos estabelecidos:\n\nObjetivos:\n${objetivos}\n\nResultados:\n${resultados}\n\nAnálise:`;
-    const completion = await openai.completions.create({
-      model: "gpt-4o",
-      prompt,
-      max_tokens: 300,
-      temperature: 0.2
-    });
+    const prompt = `Analise se os resultados estão alinhados aos objetivos:\n\nObjetivos:\n${objetivos}\n\nResultados:\n${resultados}`;
+    const completion = await openai.completions.create({ model: "gpt-4o", prompt, max_tokens: 300, temperature: 0.2 });
     return completion.choices[0].text.trim();
   } catch (error) {
     console.error("Erro na convergência:", error);
-    if (isQuotaExceeded(error)) return "Limite de uso da API da OpenAI excedido.";
-    return "Erro na análise de convergência.";
+    return isQuotaExceeded(error) ? "Limite de uso da API da OpenAI excedido." : "Erro na convergência.";
   }
 }
 
@@ -213,23 +192,15 @@ async function avaliarMetasEConclusoes(metas, conclusoes) {
   if (!metas || !conclusoes) return "Metas ou Conclusões não encontradas.";
   const messages = [
     { role: "system", content: "Você é um avaliador de trabalhos acadêmicos." },
-    {
-      role: "user",
-      content: `Metas (Objetivos):\n${metas}\n\nConclusões:\n${conclusoes}\n\nPor favor, forneça uma análise completa e sugestões de melhoria.`
-    }
+    { role: "user", content: `Metas:\n${metas}\n\nConclusões:\n${conclusoes}` }
   ];
 
   try {
-    const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
-      messages,
-      max_tokens: 500
-    });
+    const completion = await openai.chat.completions.create({ model: "gpt-4o", messages, max_tokens: 500 });
     return completion.choices[0].message.content;
   } catch (error) {
-    console.error("Erro na análise metas/conclusões:", error);
-    if (isQuotaExceeded(error)) return "Limite de uso da API da OpenAI excedido.";
-    return "Erro na avaliação de metas e conclusões.";
+    console.error("Erro na análise de metas/conclusões:", error);
+    return isQuotaExceeded(error) ? "Limite de uso da API da OpenAI excedido." : "Erro na avaliação de metas e conclusões.";
   }
 }
 
@@ -238,40 +209,33 @@ app.post("/upload", autenticarToken, upload.single("file"), async (req, res) => 
 
   try {
     const data = await pdfParse(req.file.buffer);
-    const textoExtraido = data.text;
-    const errosOrtograficos = await corrigirTexto(textoExtraido);
-    const paragrafosMalElaborados = await avaliarParagrafos(textoExtraido);
-
-    const introducao = extrairSecao("introducao", textoExtraido);
-    const sugestoesIntroducao = await sugestaoMelhoriasIntroducao(introducao);
-    const objetivos = extrairSecao("objetivos", textoExtraido);
-    const resultados = extrairSecao("resultados", textoExtraido);
-    const conclusao = extrairSecao("conclusao", textoExtraido);
-
-    const avaliacaoConvergencia = await avaliarConvergencia(objetivos, resultados);
-    const avaliacaoMetasConclusoes = await avaliarMetasEConclusoes(objetivos, conclusao);
+    const texto = data.text;
+    const erros = await corrigirTexto(texto);
+    const parags = await avaliarParagrafos(texto);
+    const intro = extrairSecao("introducao", texto);
+    const sugIntro = await sugestaoMelhoriasIntroducao(intro);
+    const obj = extrairSecao("objetivos", texto);
+    const resul = extrairSecao("resultados", texto);
+    const concl = extrairSecao("conclusao", texto);
+    const conv = await avaliarConvergencia(obj, resul);
+    const conclFinal = await avaliarMetasEConclusoes(obj, concl);
 
     res.json({
-      textoExtraido,
-      errosOrtograficos,
-      paragrafosMalElaborados,
-      introducao,
-      sugestoesIntroducao,
-      objetivos,
-      resultados,
-      conclusao,
-      avaliacaoConvergencia,
-      avaliacaoConclusao: avaliacaoMetasConclusoes
+      textoExtraido: texto,
+      errosOrtograficos: erros,
+      paragrafosMalElaborados: parags,
+      introducao: intro,
+      sugestoesIntroducao: sugIntro,
+      objetivos: obj,
+      resultados: resul,
+      conclusao: concl,
+      avaliacaoConvergencia: conv,
+      avaliacaoConclusao: conclFinal
     });
   } catch (error) {
-    console.error("Erro no processamento:", error);
+    console.error("Erro ao processar o PDF:", error);
     res.status(500).send("Erro ao processar o PDF.");
   }
-});
-
-app.get("/pendentes", (req, res) => {
-  const listaEmails = pendentes.map(u => ({ email: u.email }));
-  res.json(listaEmails);
 });
 
 app.listen(port, () => {
