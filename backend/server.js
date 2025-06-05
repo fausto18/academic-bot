@@ -2,34 +2,28 @@ import express from "express";
 import multer from "multer";
 import cors from "cors";
 import pdfParse from "pdf-parse";
-import OpenAI from "openai";
+// import OpenAI from "openai";
+import { gerarResposta } from "./gemini.js";
 import dotenv from "dotenv";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
-import pkg from "pg";
+import sequelize from "./db.js";
+import Usuario from "./models/Usuario.js";
 
 dotenv.config();
-const { Pool } = pkg;
 
 const app = express();
 const port = process.env.PORT || 5000;
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const JWT_SECRET = process.env.JWT_SECRET || "segredo_forte";
 
-// PostgreSQL connection
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
-});
-
-// Middlewares
 app.use(express.json());
 app.use(cookieParser());
 
 const allowedOrigins = [
-  "http://localhost:3000",
-  "https://academic-bot-five.vercel.app",
+  "http://localhost:3000", // frontend local
+  "https://academic-bot-five.vercel.app" // frontend em produção
 ];
 
 app.use(cors({
@@ -40,13 +34,14 @@ app.use(cors({
       callback(new Error("Not allowed by CORS"));
     }
   },
-  methods: ["GET", "POST"],
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
   credentials: true,
 }));
 
+
 const upload = multer({ storage: multer.memoryStorage() });
 
-// Autenticação via token
+// Middleware de autenticação JWT
 function autenticarToken(req, res, next) {
   const token = req.cookies.token;
   if (!token) return res.status(401).json({ mensagem: "Token não fornecido." });
@@ -60,44 +55,46 @@ function autenticarToken(req, res, next) {
   }
 }
 
-// Rota para verificar autenticação
+// Rota de verificação
 app.get("/verificar", autenticarToken, (req, res) => {
   res.json({ mensagem: "Usuário autenticado", email: req.usuario.email });
 });
 
-// Registro de novo usuário
+// Registro
 app.post("/register", async (req, res) => {
   const { email, senha } = req.body;
   try {
-    const existe = await pool.query("SELECT * FROM usuarios WHERE email = $1", [email]);
-    if (existe.rows.length > 0) {
+    const existente = await Usuario.findOne({ where: { email } });
+    if (existente) {
       return res.status(409).json({ mensagem: "Email já cadastrado." });
     }
 
     const senhaHash = await bcrypt.hash(senha, 10);
-    await pool.query(
-      "INSERT INTO usuarios (email, senha, aprovado) VALUES ($1, $2, $3)",
-      [email, senhaHash, false]
-    );
+    await Usuario.create({ email, senha: senhaHash, aprovado: false });
 
-    res.json({ mensagem: "Registro realizado com sucesso. Aguarde a aprovação do administrador." });
-  } catch (error) {
-    console.error(error);
-    res.status(500).json({ mensagem: "Erro ao registrar." });
+    res.json({ mensagem: "Registro realizado com sucesso. Aguarde a aprovação." });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ mensagem: "Erro no registro." });
   }
 });
 
-// Aprovação de usuários pelo admin
+// Aprovar usuários
 app.post("/aprovar", async (req, res) => {
   const { email } = req.body;
   try {
-    const result = await pool.query("UPDATE usuarios SET aprovado = true WHERE email = $1 RETURNING *", [email]);
-    if (result.rowCount === 0) {
+    const [updated] = await Usuario.update(
+      { aprovado: true },
+      { where: { email } }
+    );
+
+    if (updated === 0) {
       return res.status(404).json({ mensagem: "Usuário não encontrado." });
     }
+
     res.json({ mensagem: "Usuário aprovado com sucesso." });
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ mensagem: "Erro ao aprovar usuário." });
   }
 });
@@ -106,15 +103,12 @@ app.post("/aprovar", async (req, res) => {
 app.post("/login", async (req, res) => {
   const { email, senha } = req.body;
   try {
-    const result = await pool.query("SELECT * FROM usuarios WHERE email = $1", [email]);
-    const usuario = result.rows[0];
-
+    const usuario = await Usuario.findOne({ where: { email } });
     if (!usuario || !usuario.aprovado || !bcrypt.compareSync(senha, usuario.senha)) {
       return res.status(401).json({ mensagem: "Credenciais inválidas ou conta não aprovada." });
     }
 
     const token = jwt.sign({ id: usuario.id, email: usuario.email }, JWT_SECRET, { expiresIn: "2h" });
-
     res.cookie("token", token, {
       httpOnly: true,
       secure: true,
@@ -123,8 +117,8 @@ app.post("/login", async (req, res) => {
     });
 
     res.json({ mensagem: "Login bem-sucedido" });
-  } catch (error) {
-    console.error(error);
+  } catch (err) {
+    console.error(err);
     res.status(500).json({ mensagem: "Erro ao efetuar login." });
   }
 });
@@ -139,7 +133,9 @@ app.post("/logout", (req, res) => {
   res.json({ mensagem: "Logout realizado com sucesso." });
 });
 
-// Mapeamento de seções para extração
+// -----------------------------------
+// Processamento de PDF via Gemini
+// -----------------------------------
 const secoesMapeadas = {
   introducao: ["Introdução", "Introducao"],
   objetivos: ["Objetivos", "Objetivo", "Objectivos", "Objectivo"],
@@ -161,85 +157,77 @@ function isQuotaExceeded(error) {
   return error?.status === 429 && (error?.code === "insufficient_quota" || error?.error?.code === "insufficient_quota");
 }
 
-// Funções de avaliação usando OpenAI
 async function corrigirTexto(texto) {
   try {
-    const prompt = `Corrija os erros ortográficos:\n\n${texto}`;
-    const completion = await openai.completions.create({ model: "gpt-4o", prompt, max_tokens: 500, temperature: 0.3 });
-    return completion.choices[0].text.trim();
+    return await gerarResposta(`Corrija os erros ortográficos:\n\n${texto}`);
   } catch (error) {
-    console.error("Erro na correção ortográfica:", error);
-    return isQuotaExceeded(error) ? "Limite de uso da API da OpenAI excedido." : "Erro na correção ortográfica.";
+    console.error(error);
+    return "Erro na correção.";
   }
 }
 
 async function avaliarParagrafos(texto) {
   try {
-    const prompt = `Identifique parágrafos mal elaborados:\n\n${texto}`;
-    const completion = await openai.completions.create({ model: "gpt-4o", prompt, max_tokens: 500, temperature: 0.4 });
-    return completion.choices[0].text.trim();
+    return await gerarResposta(`Identifique parágrafos mal elaborados:\n\n${texto}`);
   } catch (error) {
-    console.error("Erro na avaliação de parágrafos:", error);
-    return isQuotaExceeded(error) ? "Limite de uso da API da OpenAI excedido." : "Erro na avaliação de parágrafos.";
+    console.error(error);
+    return "Erro na análise.";
   }
 }
 
 async function sugestaoMelhoriasIntroducao(introducao) {
   if (!introducao) return "Introdução não encontrada.";
   try {
-    const prompt = `Sugira melhorias para a introdução:\n\n${introducao}`;
-    const completion = await openai.completions.create({ model: "gpt-4o", prompt, max_tokens: 400, temperature: 0.7 });
-    return completion.choices[0].text.trim();
+    return await gerarResposta(`Sugira melhorias para a introdução:\n\n${introducao}`);
   } catch (error) {
-    console.error("Erro na introdução:", error);
-    return isQuotaExceeded(error) ? "Limite de uso da API da OpenAI excedido." : "Erro na sugestão da introdução.";
+    console.error(error);
+    return "Erro na sugestão.";
   }
 }
 
 async function avaliarConvergencia(objetivos, resultados) {
-  if (!objetivos || !resultados) return "Objetivos ou Resultados não encontrados.";
+  if (!objetivos || !resultados) return "Faltam dados.";
   try {
-    const prompt = `Analise se os resultados estão alinhados aos objetivos:\n\nObjetivos:\n${objetivos}\n\nResultados:\n${resultados}`;
-    const completion = await openai.completions.create({ model: "gpt-4o", prompt, max_tokens: 300, temperature: 0.2 });
-    return completion.choices[0].text.trim();
+    return await gerarResposta(`Analise se os resultados estão alinhados aos objetivos:\n\nObjetivos:\n${objetivos}\n\nResultados:\n${resultados}`);
   } catch (error) {
-    console.error("Erro na convergência:", error);
-    return isQuotaExceeded(error) ? "Limite de uso da API da OpenAI excedido." : "Erro na convergência.";
+    console.error(error);
+    return "Erro na convergência.";
   }
 }
 
 async function avaliarMetasEConclusoes(metas, conclusoes) {
-  if (!metas || !conclusoes) return "Metas ou Conclusões não encontradas.";
-  const messages = [
-    { role: "system", content: "Você é um avaliador de trabalhos acadêmicos." },
-    { role: "user", content: `Metas:\n${metas}\n\nConclusões:\n${conclusoes}` }
-  ];
-
+  if (!metas || !conclusoes) return "Faltam dados.";
   try {
-    const completion = await openai.chat.completions.create({ model: "gpt-4o", messages, max_tokens: 500 });
-    return completion.choices[0].message.content;
+    return await gerarResposta(`Analise se as conclusões refletem as metas estabelecidas:\n\nMetas:\n${metas}\n\nConclusões:\n${conclusoes}`);
   } catch (error) {
-    console.error("Erro na análise de metas/conclusões:", error);
-    return isQuotaExceeded(error) ? "Limite de uso da API da OpenAI excedido." : "Erro na avaliação de metas e conclusões.";
+    console.error(error);
+    return "Erro na avaliação.";
   }
 }
 
-// Upload e análise de PDF
+
+// Upload e análise
 app.post("/upload", autenticarToken, upload.single("file"), async (req, res) => {
   if (!req.file) return res.status(400).send("Nenhum arquivo enviado.");
 
   try {
     const data = await pdfParse(req.file.buffer);
     const texto = data.text;
-    const erros = await corrigirTexto(texto);
-    const parags = await avaliarParagrafos(texto);
-    const intro = extrairSecao("introducao", texto);
-    const sugIntro = await sugestaoMelhoriasIntroducao(intro);
-    const obj = extrairSecao("objetivos", texto);
-    const resul = extrairSecao("resultados", texto);
-    const concl = extrairSecao("conclusao", texto);
-    const conv = await avaliarConvergencia(obj, resul);
-    const conclFinal = await avaliarMetasEConclusoes(obj, concl);
+
+    const [erros, parags, intro, obj, resul, concl] = await Promise.all([
+      corrigirTexto(texto),
+      avaliarParagrafos(texto),
+      extrairSecao("introducao", texto),
+      extrairSecao("objetivos", texto),
+      extrairSecao("resultados", texto),
+      extrairSecao("conclusao", texto)
+    ]);
+
+    const [sugIntro, conv, conclFinal] = await Promise.all([
+      sugestaoMelhoriasIntroducao(intro),
+      avaliarConvergencia(obj, resul),
+      avaliarMetasEConclusoes(obj, concl)
+    ]);
 
     res.json({
       textoExtraido: texto,
@@ -254,11 +242,22 @@ app.post("/upload", autenticarToken, upload.single("file"), async (req, res) => 
       avaliacaoConclusao: conclFinal
     });
   } catch (error) {
-    console.error("Erro ao processar o PDF:", error);
+    console.error("Erro no processamento:", error);
     res.status(500).send("Erro ao processar o PDF.");
   }
 });
 
-app.listen(port, () => {
-  console.log(`Servidor rodando na porta ${port}`);
-});
+// Sincroniza modelos com o banco (cria tabela se não existir)
+sequelize.sync()
+  .then(() => {
+    console.log("Modelos sincronizados com o banco de dados.");
+    
+    // Inicia o servidor após sincronização bem-sucedida
+    app.listen(port, () => {
+      console.log(`Servidor rodando na porta ${port}`);
+    });
+  })
+  .catch((err) => {
+    console.error("Erro ao sincronizar modelos:", err);
+  });
+

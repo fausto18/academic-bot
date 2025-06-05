@@ -1,21 +1,22 @@
 import React, { useState } from "react";
 import axios from "axios";
+import Spinner from "./Spinner";
 
 function Login({ onLogin, onRegistrar }) {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [mensagem, setMensagem] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
-  const [carregando, setCarregando] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const handleLogin = async () => {
-    if (!email || !senha) {
-      setMensagem("Preencha todos os campos.");
+    if (!email.trim() || !senha.trim()) {
+      setMensagem("Preencha o email e a senha.");
       return;
     }
 
-    setCarregando(true);
     setMensagem("");
+    setLoading(true);
 
     try {
       const response = await axios.post(
@@ -23,17 +24,13 @@ function Login({ onLogin, onRegistrar }) {
         { email, senha },
         { withCredentials: true }
       );
-
-      if (response.data && response.data.usuario) {
-        onLogin(response.data.usuario); // envia os dados para App
-      } else {
-        setMensagem("Login realizado, mas usuário não reconhecido.");
-      }
+      setMensagem(response.data.mensagem);
+      onLogin(); // sucesso
     } catch (error) {
       setMensagem("Email ou senha inválido.");
+    } finally {
+      setLoading(false);
     }
-
-    setCarregando(false);
   };
 
   return (
@@ -43,10 +40,9 @@ function Login({ onLogin, onRegistrar }) {
       padding: "30px",
       backgroundColor: "#f2f2f2",
       borderRadius: "10px",
-      fontFamily: "Arial",
-      boxShadow: "0 0 10px rgba(0,0,0,0.1)"
+      fontFamily: "Arial"
     }}>
-      <h2 style={{ textAlign: "center" }}>Login</h2>
+      <h2>Login</h2>
 
       <div style={{ marginBottom: "10px" }}>
         <label>Email:</label>
@@ -54,13 +50,8 @@ function Login({ onLogin, onRegistrar }) {
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "8px",
-            marginTop: "4px",
-            borderRadius: "4px",
-            border: "1px solid #ccc"
-          }}
+          style={{ width: "100%", padding: "8px", marginTop: "4px" }}
+          placeholder="Digite seu email"
         />
       </div>
 
@@ -70,15 +61,10 @@ function Login({ onLogin, onRegistrar }) {
           type={mostrarSenha ? "text" : "password"}
           value={senha}
           onChange={(e) => setSenha(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "8px",
-            marginTop: "4px",
-            borderRadius: "4px",
-            border: "1px solid #ccc"
-          }}
+          style={{ width: "100%", padding: "8px", marginTop: "4px" }}
+          placeholder="Digite sua senha"
         />
-        <label style={{ fontSize: "0.9em" }}>
+        <label style={{ fontSize: "14px", display: "block", marginTop: "5px" }}>
           <input
             type="checkbox"
             checked={mostrarSenha}
@@ -89,7 +75,7 @@ function Login({ onLogin, onRegistrar }) {
 
       <button
         onClick={handleLogin}
-        disabled={carregando}
+        disabled={loading}
         style={{
           width: "100%",
           padding: "10px",
@@ -97,20 +83,15 @@ function Login({ onLogin, onRegistrar }) {
           border: "none",
           borderRadius: "5px",
           fontWeight: "bold",
-          cursor: carregando ? "not-allowed" : "pointer",
-          opacity: carregando ? 0.7 : 1
+          cursor: "pointer"
         }}
       >
-        {carregando ? "Entrando..." : "Login"}
+        {loading ? "Entrando..." : "Entrar"}
       </button>
 
+      {loading && <Spinner />}
       {mensagem && (
-        <div style={{
-          marginTop: "15px",
-          color: "red",
-          textAlign: "center",
-          fontWeight: "bold"
-        }}>
+        <div style={{ marginTop: "15px", color: "red", textAlign: "center" }}>
           {mensagem}
         </div>
       )}

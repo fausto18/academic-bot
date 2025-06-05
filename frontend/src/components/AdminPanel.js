@@ -22,7 +22,7 @@ function AdminPanel() {
 
   const aprovar = async (id) => {
     try {
-      await axios.post(`https://academic-bot-production.up.railway.app/usuarios/aprovar/${id}`, {}, {
+      await axios.post("https://academic-bot-production.up.railway.app/usuarios/aprovar/${id}", {}, {
         withCredentials: true,
       });
       setMensagem("Usuário aprovado com sucesso.");
@@ -34,7 +34,7 @@ function AdminPanel() {
 
   const rejeitar = async (id) => {
     try {
-      await axios.delete(`https://academic-bot-production.up.railway.app/usuarios/${id}`, {
+      await axios.delete("https://academic-bot-production.up.railway.app/usuarios/${id}", {
         withCredentials: true,
       });
       setMensagem("Usuário rejeitado e removido.");

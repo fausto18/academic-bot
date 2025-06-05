@@ -1,37 +1,35 @@
 import React, { useState } from "react";
 import axios from "axios";
+import Spinner from "./Spinner";
+
 
 function Register({ onVoltar }) {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [mensagem, setMensagem] = useState("");
-  const [carregando, setCarregando] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  const handleRegistro = async () => {
-    if (!email || !senha) {
-      setMensagem("Preencha todos os campos.");
+  const handleRegister = async () => {
+    if (!email.trim() || !senha.trim()) {
+      setMensagem("Preencha o email e a senha.");
       return;
     }
 
-    setCarregando(true);
     setMensagem("");
+    setLoading(true);
 
     try {
       const response = await axios.post(
-        "https://academic-bot-production.up.railway.app/registrar",
-        { email, senha }
+        "${API_BASE}/register",
+        { email, senha },
+        { withCredentials: true }
       );
-
-      if (response.data?.mensagem) {
-        setMensagem(response.data.mensagem);
-      } else {
-        setMensagem("Registro efetuado com sucesso.");
-      }
+      setMensagem(response.data.mensagem || "Registro realizado com sucesso!");
     } catch (error) {
-      setMensagem("Erro ao registrar. Email pode já estar em uso.");
+      setMensagem("Erro ao registrar. Tente novamente.");
+    } finally {
+      setLoading(false);
     }
-
-    setCarregando(false);
   };
 
   return (
@@ -39,12 +37,11 @@ function Register({ onVoltar }) {
       maxWidth: "400px",
       margin: "50px auto",
       padding: "30px",
-      backgroundColor: "#f9f9f9",
+      backgroundColor: "#f2f2f2",
       borderRadius: "10px",
-      fontFamily: "Arial",
-      boxShadow: "0 0 10px rgba(0,0,0,0.1)"
+      fontFamily: "Arial"
     }}>
-      <h2 style={{ textAlign: "center" }}>Registrar</h2>
+      <h2>Registro</h2>
 
       <div style={{ marginBottom: "10px" }}>
         <label>Email:</label>
@@ -52,13 +49,8 @@ function Register({ onVoltar }) {
           type="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "8px",
-            marginTop: "4px",
-            borderRadius: "4px",
-            border: "1px solid #ccc"
-          }}
+          style={{ width: "100%", padding: "8px", marginTop: "4px" }}
+          placeholder="Digite seu email"
         />
       </div>
 
@@ -68,19 +60,14 @@ function Register({ onVoltar }) {
           type="password"
           value={senha}
           onChange={(e) => setSenha(e.target.value)}
-          style={{
-            width: "100%",
-            padding: "8px",
-            marginTop: "4px",
-            borderRadius: "4px",
-            border: "1px solid #ccc"
-          }}
+          style={{ width: "100%", padding: "8px", marginTop: "4px" }}
+          placeholder="Crie uma senha segura"
         />
       </div>
 
       <button
-        onClick={handleRegistro}
-        disabled={carregando}
+        onClick={handleRegister}
+        disabled={loading}
         style={{
           width: "100%",
           padding: "10px",
@@ -88,20 +75,15 @@ function Register({ onVoltar }) {
           border: "none",
           borderRadius: "5px",
           fontWeight: "bold",
-          cursor: carregando ? "not-allowed" : "pointer",
-          opacity: carregando ? 0.7 : 1
+          cursor: "pointer"
         }}
       >
-        {carregando ? "Registrando..." : "Registrar"}
+        {loading ? "Registrando..." : "Registrar"}
       </button>
 
+      {loading && <Spinner />}
       {mensagem && (
-        <div style={{
-          marginTop: "15px",
-          color: mensagem.includes("sucesso") ? "green" : "red",
-          textAlign: "center",
-          fontWeight: "bold"
-        }}>
+        <div style={{ marginTop: "15px", color: "green", textAlign: "center" }}>
           {mensagem}
         </div>
       )}
@@ -117,7 +99,7 @@ function Register({ onVoltar }) {
             cursor: "pointer"
           }}
         >
-          Já tem conta? Fazer Login
+          Já tem conta? Voltar
         </button>
       </div>
     </div>
