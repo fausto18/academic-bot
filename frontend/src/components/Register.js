@@ -2,16 +2,33 @@ import React, { useState } from "react";
 import axios from "axios";
 import Spinner from "./Spinner";
 
-
 function Register({ onVoltar }) {
-  const [email, setEmail] = useState("");
-  const [senha, setSenha] = useState("");
+  const [form, setForm] = useState({
+    primeiro_nome: "",
+    ultimo_nome: "",
+    email: "",
+    contacto: "",
+    senha: "",
+    repetir_senha: ""
+  });
+
   const [mensagem, setMensagem] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const handleChange = (e) => {
+    setForm({ ...form, [e.target.name]: e.target.value });
+  };
+
   const handleRegister = async () => {
-    if (!email.trim() || !senha.trim()) {
-      setMensagem("Preencha o email e a senha.");
+    const { primeiro_nome, ultimo_nome, email, contacto, senha, repetir_senha } = form;
+
+    if (!primeiro_nome || !ultimo_nome || !email || !contacto || !senha || !repetir_senha) {
+      setMensagem("Preencha todos os campos.");
+      return;
+    }
+
+    if (senha !== repetir_senha) {
+      setMensagem("As senhas não coincidem.");
       return;
     }
 
@@ -20,8 +37,8 @@ function Register({ onVoltar }) {
 
     try {
       const response = await axios.post(
-        "${API_BASE}/register",
-        { email, senha },
+        `${process.env.REACT_APP_API_URL}/register`,
+        { primeiro_nome, ultimo_nome, email, contacto, senha },
         { withCredentials: true }
       );
       setMensagem(response.data.mensagem || "Registro realizado com sucesso!");
@@ -43,27 +60,33 @@ function Register({ onVoltar }) {
     }}>
       <h2>Registro</h2>
 
-      <div style={{ marginBottom: "10px" }}>
-        <label>Email:</label>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={{ width: "100%", padding: "8px", marginTop: "4px" }}
-          placeholder="Digite seu email"
-        />
-      </div>
-
-      <div style={{ marginBottom: "10px" }}>
-        <label>Senha:</label>
-        <input
-          type="password"
-          value={senha}
-          onChange={(e) => setSenha(e.target.value)}
-          style={{ width: "100%", padding: "8px", marginTop: "4px" }}
-          placeholder="Crie uma senha segura"
-        />
-      </div>
+      {["primeiro_nome", "ultimo_nome", "email", "contacto", "senha", "repetir_senha"].map((field, index) => (
+        <div key={field} style={{ marginBottom: "10px" }}>
+          <label>
+            {field === "primeiro_nome" ? "Primeiro Nome:" :
+              field === "ultimo_nome" ? "Último Nome:" :
+              field === "email" ? "Email:" :
+              field === "contacto" ? "Contacto:" :
+              field === "senha" ? "Senha:" :
+              "Digite novamente a senha:"}
+          </label>
+          <input
+            type={field.includes("senha") ? "password" : "text"}
+            name={field}
+            value={form[field]}
+            onChange={handleChange}
+            style={{ width: "100%", padding: "8px", marginTop: "4px" }}
+            placeholder={
+              field === "primeiro_nome" ? "Digite seu primeiro nome" :
+              field === "ultimo_nome" ? "Digite seu último nome" :
+              field === "email" ? "Digite seu email" :
+              field === "contacto" ? "Digite seu contacto" :
+              field === "senha" ? "Crie uma senha segura" :
+              "Repita a senha"
+            }
+          />
+        </div>
+      ))}
 
       <button
         onClick={handleRegister}

@@ -10,12 +10,18 @@ import jwt from "jsonwebtoken";
 import cookieParser from "cookie-parser";
 import sequelize from "./db.js";
 import Usuario from "./models/Usuario.js";
+import { createClient } from "@supabase/supabase-js"
+
+// Configuração do Supabase
+const supabaseUrl = 'https://nlbrbspgvzulsswkqsya.supabase.co'
+const supabaseKey = process.env.SUPABASE_KEY
+const supabase = createClient(supabaseUrl, supabaseKey)
 
 dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 5000;
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const JWT_SECRET = process.env.JWT_SECRET || "segredo_forte";
 
 app.use(express.json());
@@ -62,7 +68,23 @@ app.get("/verificar", autenticarToken, (req, res) => {
 
 // Registro
 app.post("/register", async (req, res) => {
-  const { email, senha } = req.body;
+  const {
+    primeiro_nome,
+    ultimo_nome,
+    email,
+    contacto,
+    senha,
+    repetir_senha
+  } = req.body;
+
+  if (!primeiro_nome || !ultimo_nome || !email || !contacto || !senha || !repetir_senha) {
+    return res.status(400).json({ mensagem: "Todos os campos são obrigatórios." });
+  }
+
+  if (senha !== repetir_senha) {
+    return res.status(400).json({ mensagem: "As senhas não coincidem." });
+  }
+
   try {
     const existente = await Usuario.findOne({ where: { email } });
     if (existente) {
@@ -70,7 +92,14 @@ app.post("/register", async (req, res) => {
     }
 
     const senhaHash = await bcrypt.hash(senha, 10);
-    await Usuario.create({ email, senha: senhaHash, aprovado: false });
+    await Usuario.create({
+      primeiro_nome,
+      ultimo_nome,
+      email,
+      contacto,
+      senha: senhaHash,
+      aprovado: false
+    });
 
     res.json({ mensagem: "Registro realizado com sucesso. Aguarde a aprovação." });
   } catch (err) {
