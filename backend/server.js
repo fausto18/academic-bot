@@ -22,7 +22,7 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 5000;
 // const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const JWT_SECRET = process.env.JWT_SECRET || "segredo_forte";
+const JWT_SECRET = process.env.JWT_SECRET;
 
 app.use(express.json());
 app.use(cookieParser());

@@ -112,7 +112,7 @@ function App() {
     );
   }
 
-  if (usuario?.email === "fausto.sacufundala1997@gmail.com") {
+  if (usuario?.email === "") {
     return <AdminPanel onLogout={handleLogout} />;
   }
 
