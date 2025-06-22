@@ -51,79 +51,90 @@ function Register({ onVoltar }) {
 
   return (
     <div style={{
-      maxWidth: "400px",
-      margin: "50px auto",
-      padding: "30px",
-      backgroundColor: "#f2f2f2",
-      borderRadius: "10px",
-      fontFamily: "Arial"
+      minHeight: "100vh",
+      display: "flex",
+      justifyContent: "center",
+      alignItems: "center",
+      backgroundColor: "#fff",
+      fontFamily: "Arial, sans-serif"
     }}>
-      <h2>Registro</h2>
-
-      {["primeiro_nome", "ultimo_nome", "email", "contacto", "senha", "repetir_senha"].map((field, index) => (
-        <div key={field} style={{ marginBottom: "10px" }}>
-          <label>
-            {field === "primeiro_nome" ? "Primeiro Nome:" :
-              field === "ultimo_nome" ? "Último Nome:" :
-              field === "email" ? "Email:" :
-              field === "contacto" ? "Contacto:" :
-              field === "senha" ? "Senha:" :
-              "Digite novamente a senha:"}
-          </label>
-          <input
-            type={field.includes("senha") ? "password" : "text"}
-            name={field}
-            value={form[field]}
-            onChange={handleChange}
-            style={{ width: "100%", padding: "8px", marginTop: "4px" }}
-            placeholder={
-              field === "primeiro_nome" ? "Digite seu primeiro nome" :
-              field === "ultimo_nome" ? "Digite seu último nome" :
-              field === "email" ? "Digite seu email" :
-              field === "contacto" ? "Digite seu contacto" :
-              field === "senha" ? "Crie uma senha segura" :
-              "Repita a senha"
-            }
-          />
+      <div style={{
+        width: "100%",
+        maxWidth: "380px",
+        padding: "30px",
+        boxShadow: "0 0 10px rgba(0,0,0,0.1)",
+        borderRadius: "12px"
+      }}>
+        <div style={{ textAlign: "center", marginBottom: "20px" }}>
+          <h2 style={{ fontSize: "22px", color: "#333" }}>Crie sua conta</h2>
         </div>
-      ))}
 
-      <button
-        onClick={handleRegister}
-        disabled={loading}
-        style={{
-          width: "100%",
-          padding: "10px",
-          backgroundColor: "#22D4FD",
-          border: "none",
-          borderRadius: "5px",
-          fontWeight: "bold",
-          cursor: "pointer"
-        }}
-      >
-        {loading ? "Registrando..." : "Registrar"}
-      </button>
+        {["primeiro_nome", "ultimo_nome", "email", "contacto", "senha", "repetir_senha"].map((field) => (
+          <div key={field} style={{ marginBottom: "15px" }}>
+            <input
+              type={field.includes("senha") ? "password" : "text"}
+              name={field}
+              value={form[field]}
+              onChange={handleChange}
+              placeholder={
+                field === "primeiro_nome" ? "Primeiro Nome" :
+                field === "ultimo_nome" ? "Último Nome" :
+                field === "email" ? "Email" :
+                field === "contacto" ? "Contacto" :
+                field === "senha" ? "Senha" :
+                "Repita a Senha"
+              }
+              style={{
+                width: "100%",
+                padding: "14px",
+                border: "none",
+                borderRadius: "8px",
+                backgroundColor: "#f1f1f1",
+                fontSize: "14px"
+              }}
+            />
+          </div>
+        ))}
 
-      {loading && <Spinner />}
-      {mensagem && (
-        <div style={{ marginTop: "15px", color: "green", textAlign: "center" }}>
-          {mensagem}
-        </div>
-      )}
-
-      <div style={{ marginTop: "20px", textAlign: "center" }}>
         <button
-          onClick={onVoltar}
+          onClick={handleRegister}
+          disabled={loading}
           style={{
-            backgroundColor: "transparent",
+            width: "100%",
+            padding: "14px",
+            backgroundColor: "#C3343F",
+            color: "white",
             border: "none",
-            color: "#007bff",
-            textDecoration: "underline",
+            borderRadius: "10px",
+            fontWeight: "bold",
+            fontSize: "15px",
             cursor: "pointer"
           }}
         >
-          Já tem conta? Voltar
+          {loading ? "Registrando..." : "REGISTRAR"}
         </button>
+
+        {mensagem && (
+          <div style={{ marginTop: "15px", color: "green", textAlign: "center", fontSize: "13px" }}>
+            {mensagem}
+          </div>
+        )}
+
+        <div style={{ marginTop: "20px", textAlign: "center" }}>
+          <button
+            onClick={onVoltar}
+            style={{
+              backgroundColor: "transparent",
+              border: "none",
+              color: "#3366cc",
+              textDecoration: "underline",
+              cursor: "pointer",
+              fontSize: "13px"
+            }}
+          >
+            Já tem conta? Faça login
+          </button>
+        </div>
       </div>
     </div>
   );

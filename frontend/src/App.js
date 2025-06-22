@@ -6,11 +6,16 @@ import VisualizadorPDF from "./components/VisualizadorPDF";
 import Login from "./components/Login";
 import Register from "./components/Register";
 import AdminPanel from "./components/AdminPanel";
+import ResetPassword from "./components/ResetPassword";
+import LoginSMS from "./components/LoginSMS";
 
 function App() {
   const [autenticado, setAutenticado] = useState(false);
   const [usuario, setUsuario] = useState(null);
   const [mostrarRegistro, setMostrarRegistro] = useState(false);
+  const [resetMode, setResetMode] = useState(false);
+  const [loginSMS, setLoginSMS] = useState(false);
+
   const [file, setFile] = useState(null);
   const [showPDF, setShowPDF] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -98,24 +103,57 @@ function App() {
     setShowPDF(true);
   };
 
+  // === Autenticação ===
   if (!autenticado) {
-    return mostrarRegistro ? (
-      <Register onVoltar={() => setMostrarRegistro(false)} />
-    ) : (
+    if (resetMode) {
+      return <ResetPassword onVoltar={() => setResetMode(false)} />;
+    }
+
+    if (mostrarRegistro) {
+      return <Register onVoltar={() => setMostrarRegistro(false)} />;
+    }
+
+    if (loginSMS) {
+      return <LoginSMS 
+        onLogin={(usuarioData) => {
+          setAutenticado(true);
+          setUsuario(usuarioData);
+        }} 
+        onVoltar={() => setLoginSMS(false)} 
+      />;
+    }
+
+    return (
       <Login
         onLogin={(usuarioData) => {
           setAutenticado(true);
           setUsuario(usuarioData);
         }}
-        onRegistrar={() => setMostrarRegistro(true)}
+        onRegistrar={() => {
+          setMostrarRegistro(true);
+          setResetMode(false);
+          setLoginSMS(false);
+        }}
+        onResetPassword={() => {
+          setResetMode(true);
+          setMostrarRegistro(false);
+          setLoginSMS(false);
+        }}
+        onLoginSMS={() => {
+          setLoginSMS(true);
+          setResetMode(false);
+          setMostrarRegistro(false);
+        }}
       />
     );
   }
 
+  // === Painel do Administrador ===
   if (usuario?.email === "") {
     return <AdminPanel onLogout={handleLogout} />;
   }
 
+  // === Página principal ===
   return (
     <>
       {loading && <div className="loading-overlay"><div className="loading-spinner"></div></div>}
