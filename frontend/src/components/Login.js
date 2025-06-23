@@ -1,8 +1,7 @@
 import React, { useState } from "react";
 import axios from "axios";
-import Spinner from "./Spinner";
 
-function Login({ onLogin, onRegistrar, onResetPassword, onLoginSMS }) {
+function Login({ onLogin, onRegistrar, onResetPassword }) {
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [mostrarSenha, setMostrarSenha] = useState(false);
@@ -25,7 +24,7 @@ function Login({ onLogin, onRegistrar, onResetPassword, onLoginSMS }) {
         { withCredentials: true }
       );
       setMensagem(response.data.mensagem);
-      onLogin(response.data.usuario); // passa o usuário logado
+      onLogin(response.data.usuario);
     } catch {
       setMensagem("Email ou senha inválido.");
     } finally {
@@ -44,12 +43,13 @@ function Login({ onLogin, onRegistrar, onResetPassword, onLoginSMS }) {
     }}>
       <div style={{
         width: "100%",
-        maxWidth: "360px",
-        padding: "30px",
-        boxShadow: "0 0 10px rgba(0,0,0,0.1)",
-        borderRadius: "12px"
+        maxWidth: "400px",
+        padding: "32px",
+        boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+        borderRadius: "14px",
+        boxSizing: "border-box"
       }}>
-        <div style={{ textAlign: "center", marginBottom: "20px" }}>
+        <div style={{ textAlign: "center", marginBottom: "25px" }}>
           <h2 style={{ fontSize: "22px", color: "#333" }}>Faça login no bot acadêmico</h2>
         </div>
 
@@ -60,12 +60,13 @@ function Login({ onLogin, onRegistrar, onResetPassword, onLoginSMS }) {
           placeholder="Telefone/E-mail"
           style={{
             width: "100%",
-            padding: "14px",
+            padding: "13px 14px",
             border: "none",
             borderRadius: "8px",
             backgroundColor: "#f1f1f1",
             marginBottom: "15px",
-            fontSize: "14px"
+            fontSize: "14px",
+            boxSizing: "border-box"
           }}
         />
 
@@ -77,11 +78,12 @@ function Login({ onLogin, onRegistrar, onResetPassword, onLoginSMS }) {
             placeholder="Senha"
             style={{
               width: "100%",
-              padding: "14px",
+              padding: "13px 14px",
               border: "none",
               borderRadius: "8px",
               backgroundColor: "#f1f1f1",
-              fontSize: "14px"
+              fontSize: "14px",
+              boxSizing: "border-box"
             }}
           />
           <div style={{ textAlign: "right", fontSize: "12px", marginTop: "4px" }}>
@@ -100,22 +102,6 @@ function Login({ onLogin, onRegistrar, onResetPassword, onLoginSMS }) {
           </div>
         </div>
 
-        <div style={{ marginBottom: "20px", fontSize: "13px", textAlign: "center" }}>
-          <button
-            onClick={onLoginSMS}
-            style={{
-              background: "none",
-              border: "none",
-              color: "#3366cc",
-              textDecoration: "underline",
-              cursor: "pointer",
-              padding: 0
-            }}
-          >
-            Faça login via SMS
-          </button>
-        </div>
-
         <button
           onClick={handleLogin}
           disabled={loading}
@@ -128,14 +114,20 @@ function Login({ onLogin, onRegistrar, onResetPassword, onLoginSMS }) {
             borderRadius: "10px",
             fontWeight: "bold",
             fontSize: "15px",
-            cursor: "pointer"
+            cursor: "pointer",
+            marginTop: "10px"
           }}
         >
           {loading ? "Conectando..." : "CONECTE-SE"}
         </button>
 
         {mensagem && (
-          <div style={{ marginTop: "15px", textAlign: "center", color: "#C3343F", fontSize: "13px" }}>
+          <div style={{
+            marginTop: "15px",
+            textAlign: "center",
+            color: "#C3343F",
+            fontSize: "13px"
+          }}>
             {mensagem}
           </div>
         )}
@@ -143,20 +135,33 @@ function Login({ onLogin, onRegistrar, onResetPassword, onLoginSMS }) {
         <div style={{
           marginTop: "25px",
           display: "flex",
-          justifyContent: "space-around",
+          justifyContent: "center",
+          gap: "18px",
           fontSize: "13px"
         }}>
-          <button onClick={onRegistrar} style={{ color: "#3366cc", border: "none", background: "none", cursor: "pointer" }}>
+          <button
+            onClick={onRegistrar}
+            style={{
+              color: "#3366cc",
+              border: "none",
+              background: "none",
+              cursor: "pointer"
+            }}
+          >
             Registrar
           </button>
           <span style={{ color: "#ccc" }}>|</span>
-          <button onClick={onResetPassword} style={{ color: "#3366cc", border: "none", background: "none", cursor: "pointer" }}>
+          <button
+            onClick={onResetPassword}
+            style={{
+              color: "#3366cc",
+              border: "none",
+              background: "none",
+              cursor: "pointer"
+            }}
+          >
             Esqueceu sua senha?
           </button>
-          <span style={{ color: "#ccc" }}>|</span>
-          <a href="#" style={{ color: "#3366cc", textDecoration: "none" }}>
-            Ajuda
-          </a>
         </div>
       </div>
     </div>

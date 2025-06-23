@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import axios from "axios";
-import Spinner from "./Spinner";
 
 function Register({ onVoltar }) {
   const [form, setForm] = useState({
@@ -13,6 +12,7 @@ function Register({ onVoltar }) {
   });
 
   const [mensagem, setMensagem] = useState("");
+  const [sucesso, setSucesso] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
@@ -24,11 +24,13 @@ function Register({ onVoltar }) {
 
     if (!primeiro_nome || !ultimo_nome || !email || !contacto || !senha || !repetir_senha) {
       setMensagem("Preencha todos os campos.");
+      setSucesso(false);
       return;
     }
 
     if (senha !== repetir_senha) {
       setMensagem("As senhas não coincidem.");
+      setSucesso(false);
       return;
     }
 
@@ -38,12 +40,14 @@ function Register({ onVoltar }) {
     try {
       const response = await axios.post(
         `${process.env.REACT_APP_API_URL}/register`,
-        { primeiro_nome, ultimo_nome, email, contacto, senha },
+        { primeiro_nome, ultimo_nome, email, contacto, senha, repetir_senha },
         { withCredentials: true }
       );
       setMensagem(response.data.mensagem || "Registro realizado com sucesso!");
-    } catch (error) {
+      setSucesso(true);
+    } catch {
       setMensagem("Erro ao registrar. Tente novamente.");
+      setSucesso(false);
     } finally {
       setLoading(false);
     }
@@ -56,21 +60,23 @@ function Register({ onVoltar }) {
       justifyContent: "center",
       alignItems: "center",
       backgroundColor: "#fff",
-      fontFamily: "Arial, sans-serif"
+      fontFamily: "Arial, sans-serif",
+      padding: "20px"
     }}>
       <div style={{
         width: "100%",
-        maxWidth: "380px",
+        maxWidth: "400px",
         padding: "30px",
-        boxShadow: "0 0 10px rgba(0,0,0,0.1)",
-        borderRadius: "12px"
+        boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+        borderRadius: "14px",
+        boxSizing: "border-box"
       }}>
         <div style={{ textAlign: "center", marginBottom: "20px" }}>
           <h2 style={{ fontSize: "22px", color: "#333" }}>Crie sua conta</h2>
         </div>
 
         {["primeiro_nome", "ultimo_nome", "email", "contacto", "senha", "repetir_senha"].map((field) => (
-          <div key={field} style={{ marginBottom: "15px" }}>
+          <div key={field} style={{ marginBottom: "14px" }}>
             <input
               type={field.includes("senha") ? "password" : "text"}
               name={field}
@@ -86,11 +92,12 @@ function Register({ onVoltar }) {
               }
               style={{
                 width: "100%",
-                padding: "14px",
+                padding: "13px",
                 border: "none",
                 borderRadius: "8px",
                 backgroundColor: "#f1f1f1",
-                fontSize: "14px"
+                fontSize: "14px",
+                boxSizing: "border-box"
               }}
             />
           </div>
@@ -115,21 +122,29 @@ function Register({ onVoltar }) {
         </button>
 
         {mensagem && (
-          <div style={{ marginTop: "15px", color: "green", textAlign: "center", fontSize: "13px" }}>
-            {mensagem}
+          <div style={{
+            marginTop: "15px",
+            textAlign: "center",
+            fontSize: "13px",
+            color: sucesso ? "green" : "#C3343F"
+          }}>
+            {sucesso ? "✅ " : ""}{mensagem}
           </div>
         )}
 
-        <div style={{ marginTop: "20px", textAlign: "center" }}>
+        <div style={{
+          marginTop: "20px",
+          textAlign: "center"
+        }}>
           <button
             onClick={onVoltar}
             style={{
               backgroundColor: "transparent",
               border: "none",
               color: "#3366cc",
-              textDecoration: "underline",
               cursor: "pointer",
-              fontSize: "13px"
+              fontSize: "13px",
+              textDecoration: "underline"
             }}
           >
             Já tem conta? Faça login

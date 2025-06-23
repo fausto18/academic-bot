@@ -10,11 +10,13 @@ function ResetPassword({ onVoltar }) {
   const handleReset = async () => {
     if (!novaSenha || !confirmarSenha) {
       setMensagem("Preencha todos os campos.");
+      setSucesso(false);
       return;
     }
 
     if (novaSenha !== confirmarSenha) {
       setMensagem("As senhas não coincidem.");
+      setSucesso(false);
       return;
     }
 
@@ -27,8 +29,9 @@ function ResetPassword({ onVoltar }) {
 
       setMensagem(response.data.mensagem || "Senha redefinida com sucesso.");
       setSucesso(true);
-    } catch (err) {
+    } catch {
       setMensagem("Erro ao redefinir a senha.");
+      setSucesso(false);
     }
   };
 
@@ -39,14 +42,16 @@ function ResetPassword({ onVoltar }) {
       justifyContent: "center",
       alignItems: "center",
       backgroundColor: "#fff",
-      fontFamily: "Arial, sans-serif"
+      fontFamily: "Arial, sans-serif",
+      padding: "20px"
     }}>
       <div style={{
         width: "100%",
         maxWidth: "380px",
         padding: "30px",
-        boxShadow: "0 0 10px rgba(0,0,0,0.1)",
-        borderRadius: "12px"
+        boxShadow: "0 4px 16px rgba(0,0,0,0.08)",
+        borderRadius: "14px",
+        boxSizing: "border-box"
       }}>
         <div style={{ textAlign: "center", marginBottom: "20px" }}>
           <h2 style={{ fontSize: "22px", color: "#333" }}>Redefinir Senha</h2>
@@ -64,7 +69,8 @@ function ResetPassword({ onVoltar }) {
             borderRadius: "8px",
             backgroundColor: "#f1f1f1",
             fontSize: "14px",
-            marginBottom: "10px"
+            marginBottom: "12px",
+            boxSizing: "border-box"
           }}
         />
         <input
@@ -79,7 +85,8 @@ function ResetPassword({ onVoltar }) {
             borderRadius: "8px",
             backgroundColor: "#f1f1f1",
             fontSize: "14px",
-            marginBottom: "10px"
+            marginBottom: "18px",
+            boxSizing: "border-box"
           }}
         />
 
@@ -107,7 +114,7 @@ function ResetPassword({ onVoltar }) {
             textAlign: "center",
             fontSize: "13px"
           }}>
-            {mensagem}
+            {sucesso ? "✅ " : ""}{mensagem}
           </p>
         )}
 
@@ -123,7 +130,7 @@ function ResetPassword({ onVoltar }) {
               fontSize: "13px"
             }}
           >
-            Voltar
+            Voltar ao login
           </button>
         </div>
       </div>

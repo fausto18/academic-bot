@@ -7,14 +7,12 @@ import Login from "./components/Login";
 import Register from "./components/Register";
 import AdminPanel from "./components/AdminPanel";
 import ResetPassword from "./components/ResetPassword";
-import LoginSMS from "./components/LoginSMS";
 
 function App() {
   const [autenticado, setAutenticado] = useState(false);
   const [usuario, setUsuario] = useState(null);
   const [mostrarRegistro, setMostrarRegistro] = useState(false);
   const [resetMode, setResetMode] = useState(false);
-  const [loginSMS, setLoginSMS] = useState(false);
 
   const [file, setFile] = useState(null);
   const [showPDF, setShowPDF] = useState(false);
@@ -113,16 +111,6 @@ function App() {
       return <Register onVoltar={() => setMostrarRegistro(false)} />;
     }
 
-    if (loginSMS) {
-      return <LoginSMS 
-        onLogin={(usuarioData) => {
-          setAutenticado(true);
-          setUsuario(usuarioData);
-        }} 
-        onVoltar={() => setLoginSMS(false)} 
-      />;
-    }
-
     return (
       <Login
         onLogin={(usuarioData) => {
@@ -132,16 +120,9 @@ function App() {
         onRegistrar={() => {
           setMostrarRegistro(true);
           setResetMode(false);
-          setLoginSMS(false);
         }}
         onResetPassword={() => {
           setResetMode(true);
-          setMostrarRegistro(false);
-          setLoginSMS(false);
-        }}
-        onLoginSMS={() => {
-          setLoginSMS(true);
-          setResetMode(false);
           setMostrarRegistro(false);
         }}
       />
